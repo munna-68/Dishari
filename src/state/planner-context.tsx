@@ -14,8 +14,9 @@ import { toast } from 'sonner'
 import { usePlannerPersistence } from '@/hooks/use-planner-persistence'
 import { parseMonthKey, todayIso, toMonthKey } from '@/lib/date'
 import { buildDocumentModel } from '@/lib/document-model'
-import { BACKUP_FORMAT, BACKUP_VERSION } from '@/lib/storage'
+import { downloadBlob } from '@/lib/file-download'
 import { SAMPLE_MONTH_KEY } from '@/lib/seed'
+import { buildBackup, holidayContextFrom } from '@/lib/storage'
 import type { AppSettings, MonthSchedule } from '@/lib/schema'
 import type { HolidayContext } from '@/lib/working-days'
 import { reduce, type PlannerAction, type PlannerState } from './planner-reducer'
@@ -134,11 +135,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const context = useMemo<HolidayContext>(
-    () => ({
-      holidays: state.holidays.holidays,
-      workingOverrides: state.holidays.workingOverrides,
-      weeklyOffDays: state.settings.weeklyOffDays,
-    }),
+    () => holidayContextFrom(state.holidays, state.settings.weeklyOffDays),
     [state.holidays, state.settings.weeklyOffDays],
   )
 
@@ -155,24 +152,14 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const downloadBackup = useCallback(() => {
-    const payload = {
-      format: BACKUP_FORMAT,
-      backupVersion: BACKUP_VERSION,
-      exportedAt: new Date().toISOString(),
-      settings: stateRef.current.settings,
-      holidays: stateRef.current.holidays,
-      months: stateRef.current.months,
-    }
+    const current = stateRef.current
+    const payload = buildBackup({
+      settings: current.settings,
+      holidays: current.holidays,
+      months: current.months,
+    })
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = `Monitoring_Schedule_Backup_${todayIso()}.json`
-    anchor.rel = 'noopener'
-    document.body.append(anchor)
-    anchor.click()
-    anchor.remove()
-    window.setTimeout(() => URL.revokeObjectURL(url), 4_000)
+    downloadBlob(blob, `Monitoring_Schedule_Backup_${todayIso()}.json`)
     toast.success('Backup downloaded. Keep it somewhere safe.')
   }, [])
 

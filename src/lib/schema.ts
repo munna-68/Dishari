@@ -107,11 +107,6 @@ export function emptyMonthSchedule(year: number, month: number): MonthSchedule {
   }
 }
 
-export interface RecentMemory {
-  recentTemporaryNames: string[]
-  recentBranchNames: string[]
-}
-
 /**
  * Newest-first, case-insensitive de-duplicated memory lists with a hard cap.
  * Blank and duplicate entries are dropped rather than stored.

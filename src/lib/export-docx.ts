@@ -29,18 +29,6 @@ const HEADER_FILL = 'E0E0E0'
 const TABLE_BORDER = { style: BorderStyle.SINGLE, size: 4, color: '000000' }
 const CELL_BORDERS = { top: TABLE_BORDER, bottom: TABLE_BORDER, left: TABLE_BORDER, right: TABLE_BORDER }
 
-export function emptyCell(): DocCell {
-  return {
-    text: '',
-    rowSpan: 1,
-    colSpan: 1,
-    align: 'left',
-    bold: false,
-    shaded: false,
-    hangingIndent: false,
-  }
-}
-
 function centered(text: string, sizeHalfPoints: number, bold: boolean): Paragraph {
   return new Paragraph({
     alignment: AlignmentType.CENTER,

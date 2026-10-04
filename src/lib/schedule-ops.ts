@@ -3,14 +3,12 @@ import {
   clampIso,
   compareIso,
   dayOfWeek,
-  daysInMonth,
   isValidIso,
-  pad2,
+  monthBounds,
   parseMonthKey,
-  toMonthKey,
 } from './date'
 import type { DateRange } from './date-format'
-import type { MonthSchedule, Officer, WindowKey } from './schema'
+import type { MonthSchedule, WindowKey } from './schema'
 import {
   countWorkingDays,
   defaultWindows,
@@ -19,35 +17,10 @@ import {
   type HolidayContext,
 } from './working-days'
 
-export interface WindowState {
-  range: DateRange
-  workingDays: number
-}
-
-export function windowWorkingDays(schedule: MonthSchedule, windowKey: WindowKey, context: HolidayContext): number {
-  const range = schedule.windows[windowKey]
-  return countWorkingDays(range.start, range.end, context)
-}
-
-export function windowState(
-  schedule: MonthSchedule,
-  windowKey: WindowKey,
-  context: HolidayContext,
-): WindowState {
-  return { range: schedule.windows[windowKey], workingDays: windowWorkingDays(schedule, windowKey, context) }
-}
-
 export interface SnapOutcome {
   range: DateRange
   changed: boolean
   message: string | null
-}
-
-function monthBound(key: string): { min: string; max: string } | null {
-  const parts = parseMonthKey(key)
-  if (!parts) return null
-  const prefix = toMonthKey(parts.year, parts.month)
-  return { min: `${prefix}-01`, max: `${prefix}-${pad2(daysInMonth(parts.year, parts.month))}` }
 }
 
 /**
@@ -56,7 +29,7 @@ function monthBound(key: string): { min: string; max: string } | null {
  * around outside the schedule.
  */
 function clampAndSnap(range: DateRange, key: string, context: HolidayContext): SnapOutcome {
-  const bounds = monthBound(key)
+  const bounds = monthBounds(key)
   if (!bounds) return { range, changed: false, message: null }
 
   const ordered = normaliseRange(range)
@@ -94,7 +67,7 @@ function enforceOrder(
   const two = windows.two
   if (compareIso(two.start, one.end) > 0) return { windows, pushed: false, truncated: false }
 
-  const bounds = monthBound(monthKey)
+  const bounds = monthBounds(monthKey)
   const lastWorkingDay = bounds ? snapToWorkingDay(bounds.max, context, 'backward', bounds) : null
   const length = countWorkingDays(two.start, two.end, context)
 
@@ -160,7 +133,7 @@ export function resnapWindows(
   monthKey: string,
   context: HolidayContext,
 ): WindowUpdateResult {
-  const bounds = monthBound(monthKey) ?? undefined
+  const bounds = monthBounds(monthKey) ?? undefined
   let working: MonthSchedule = schedule
   const messages: string[] = []
 
@@ -174,6 +147,15 @@ export function resnapWindows(
       : (snapToWorkingDay(range.end, context, 'nearest', bounds) ?? range.end)
 
     if (start === range.start && end === range.end) continue
+
+    const label = windowKey === 'one' ? 'Window 1' : 'Window 2'
+    const movedEdge =
+      start !== range.start && end !== range.end
+        ? `${label} moved to ${start} to ${end}`
+        : start !== range.start
+          ? `The ${label.toLowerCase()} start moved to ${start}`
+          : `The ${label.toLowerCase()} end moved to ${end}`
+    messages.push(`${movedEdge}, the nearest working day.`)
 
     const result = setWindow(working, windowKey, { start, end }, monthKey, context)
     working = { ...working, windows: result.windows }
@@ -201,7 +183,7 @@ export function shiftWindow(
   if (deltaWorkingDays === 0) return { windows: schedule.windows, message: null }
 
   const range = schedule.windows[windowKey]
-  const bounds = monthBound(monthKey)
+  const bounds = monthBounds(monthKey)
   const start = shiftByWorkingDays(range.start, deltaWorkingDays, context)
   const end = shiftByWorkingDays(range.end, deltaWorkingDays, context)
   if (!start || !end) {
@@ -239,11 +221,9 @@ function advanceWorkingDays(iso: string, count: number, context: HolidayContext)
   let moved = 0
   let guard = 0
   while (moved < count - 1 && guard < 1000) {
-    const next = addDays(cursor, 1)
-    if (isWorkingDay(next, context)) {
-      cursor = next
-      moved += 1
-    }
+    // The cursor always moves; only working days count towards the total.
+    cursor = addDays(cursor, 1)
+    if (isWorkingDay(cursor, context)) moved += 1
     guard += 1
   }
   return cursor
@@ -443,12 +423,4 @@ export function collectExportBlockers(schedule: MonthSchedule): ExportBlocker[] 
   }
 
   return blockers
-}
-
-export function officerLabel(officer: Officer): string {
-  return officer.kind === 'permanent' ? 'Permanent' : 'Temporary'
-}
-
-export function activeOfficers(schedule: MonthSchedule): Officer[] {
-  return schedule.officers.filter((officer) => !officer.crossedOut)
 }

@@ -1,4 +1,4 @@
-import { compareIso, daysInMonth, isValidIso, pad2, parseMonthKey, toMonthKey } from './date'
+import { compareIso, isValidIso, monthBounds, parseMonthKey, toMonthKey } from './date'
 import type { DateRange } from './date-format'
 import {
   DEFAULT_ACTIVITIES,
@@ -302,14 +302,16 @@ function upgradeMonthV1toV2(raw: Record<string, unknown>, year: number, month: n
 
   const windowOne = rangeOr(raw.w1, fallback.windows.one)
   const windowTwo = rangeOr(raw.w2, fallback.windows.two)
-  const monthEnd = `${toMonthKey(year, month)}-${pad2(daysInMonth(year, month))}`
+  const bounds = monthBounds(toMonthKey(year, month))
+  const monthStart = bounds?.min ?? ''
+  const monthEnd = bounds?.max ?? ''
 
   return {
     ...fallback,
     schemaVersion: 2,
     windows: {
-      one: clampIntoMonth(windowOne, monthEnd),
-      two: clampIntoMonth(windowTwo, monthEnd),
+      one: clampIntoMonth(windowOne, monthStart, monthEnd),
+      two: clampIntoMonth(windowTwo, monthStart, monthEnd),
     },
     activities: stringArrayOr(raw.activities, [...DEFAULT_ACTIVITIES], 24),
     officers,
@@ -317,8 +319,7 @@ function upgradeMonthV1toV2(raw: Record<string, unknown>, year: number, month: n
   }
 }
 
-function clampIntoMonth(range: DateRange, monthEnd: string): DateRange {
-  const monthStart = `${monthEnd.slice(0, 8)}01`
+function clampIntoMonth(range: DateRange, monthStart: string, monthEnd: string): DateRange {
   const start = compareIso(range.start, monthStart) < 0 ? monthStart : range.start
   const end = compareIso(range.end, monthEnd) > 0 ? monthEnd : range.end
   return compareIso(start, end) <= 0 ? { start, end } : { start, end: start }

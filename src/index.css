@@ -191,14 +191,19 @@
   }
 }
 
-/* The paper preview always renders the printed sheet, not the app chrome. */
+/* The paper preview always renders the printed sheet, so it stays white with
+   black ink in both themes and matches the PDF and Word output exactly. */
 .paper-sheet {
-  color: var(--paper-ink);
-  background: var(--paper);
+  color: #171717;
+  background: #ffffff;
+  --paper-ink: #171717;
+  --paper-rule: #8c8c8c;
+  --paper-head: #e0e0e0;
 }
 
 .paper-sheet .paper-head-cell {
   background: var(--paper-head);
+  color: var(--paper-ink);
 }
 
 .paper-sheet .paper-rule {

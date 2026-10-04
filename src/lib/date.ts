@@ -194,6 +194,13 @@ export function monthKeyOf(iso: IsoDate): string {
   return iso.slice(0, 7)
 }
 
+/** Inclusive first and last day of a month, as ISO dates. */
+export function monthBounds(key: string): { min: string; max: string } | null {
+  const parts = parseMonthKey(key)
+  if (!parts) return null
+  return { min: startOfMonthIso(parts.year, parts.month), max: endOfMonthIso(parts.year, parts.month) }
+}
+
 export function monthLabel(key: string): string {
   const parts = parseMonthKey(key)
   if (!parts) return key

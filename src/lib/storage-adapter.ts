@@ -119,16 +119,6 @@ export function createStorageAdapter(source?: Storage | null): StorageAdapter {
   }
 }
 
-export function readJson(adapter: StorageAdapter, key: string): unknown {
-  const raw = adapter.read(key)
-  if (raw === null) return null
-  try {
-    return JSON.parse(raw) as unknown
-  } catch {
-    return null
-  }
-}
-
 export function writeJson(adapter: StorageAdapter, key: string, value: unknown): boolean {
   try {
     return adapter.write(key, JSON.stringify(value))

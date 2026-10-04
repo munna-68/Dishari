@@ -15,15 +15,13 @@ import { DAY_LEGEND } from '@/components/calendar/calendar-legend'
 import { DayCell } from '@/components/calendar/day-cell'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { WEEKDAY_SHORT, addDays, compareIso, isWithin, monthGridIsoDays, parseMonthKey } from '@/lib/date'
+import { WEEKDAY_SHORT, compareIso, eachIsoDay, isWithin, monthGridIsoDays, parseMonthKey } from '@/lib/date'
 import type { DateRange } from '@/lib/date-format'
 import { shiftDateByWorkingDays } from '@/lib/schedule-ops'
-import type { MonthSchedule } from '@/lib/schema'
+import type { MonthSchedule, WindowKey } from '@/lib/schema'
 import { cn } from '@/lib/utils'
 import type { HolidayContext } from '@/lib/working-days'
 import { holidayLabel, isToday, resolveDayStatus } from '@/lib/working-days'
-
-export type WindowKey = 'one' | 'two'
 
 export interface PlannerCalendarProps {
   monthKey: string
@@ -84,7 +82,7 @@ export function PlannerCalendar({
       const ranges = entry.customRanges.length > 0 ? entry.customRanges : [windows[windowKey]]
       for (const range of ranges) {
         if (compareIso(range.start, range.end) > 0) continue
-        for (const iso of eachDay(range.start, range.end)) set.add(iso)
+        for (const iso of eachIsoDay(range.start, range.end)) set.add(iso)
       }
     }
     return set
@@ -364,16 +362,4 @@ function CalendarLegend() {
       ))}
     </div>
   )
-}
-
-function eachDay(start: string, end: string): string[] {
-  const result: string[] = []
-  let cursor = start
-  let guard = 0
-  while (compareIso(cursor, end) <= 0 && guard < 400) {
-    result.push(cursor)
-    cursor = addDays(cursor, 1)
-    guard += 1
-  }
-  return result
 }

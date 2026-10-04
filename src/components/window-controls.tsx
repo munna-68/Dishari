@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { isValidIso, parseMonthKey } from '@/lib/date'
-import { printedMonthName } from '@/lib/date-format'
+import { isValidIso, monthBounds } from '@/lib/date'
+import { formatWindowLabel } from '@/lib/date-format'
 import type { DateRange } from '@/lib/date-format'
 import type { HolidayContext } from '@/lib/working-days'
 import { countWorkingDays } from '@/lib/working-days'
 import { cn } from '@/lib/utils'
-import type { WindowKey } from '@/components/calendar/planner-calendar'
+import type { WindowKey } from '@/lib/schema'
 
 export interface WindowControlsProps {
   windows: Record<WindowKey, DateRange>
@@ -91,8 +91,8 @@ function WindowField({
           id={`${windowKey}-start`}
           type="date"
           value={range.start}
-          min={monthBounds(range.start).min}
-          max={range.end || monthBounds(range.start).max}
+          min={monthBounds(range.start.slice(0, 7))?.min}
+          max={range.end || monthBounds(range.start.slice(0, 7))?.max}
           onChange={(event) => onChange({ ...range, start: event.target.value })}
           className="w-40"
           aria-invalid={invalid}
@@ -106,8 +106,8 @@ function WindowField({
           id={`${windowKey}-end`}
           type="date"
           value={range.end}
-          min={range.start || monthBounds(range.end).min}
-          max={monthBounds(range.end).max}
+          min={range.start || monthBounds(range.end.slice(0, 7))?.min}
+          max={monthBounds(range.end.slice(0, 7))?.max}
           onChange={(event) => onChange({ ...range, end: event.target.value })}
           className="w-40"
           aria-invalid={invalid}
@@ -126,10 +126,10 @@ function WindowBadge({
   range: DateRange
   workingDays: number
 }) {
-  const label = workingDays === 1 ? '1 working day' : `${workingDays} working days`
-  const month = isValidIso(range.start) ? printedMonthName(parseMonthKey(range.start.slice(0, 7))?.month ?? 1) : ''
-  const startDay = isValidIso(range.start) ? range.start.slice(8, 10) : '--'
-  const endDay = isValidIso(range.end) ? range.end.slice(8, 10) : '--'
+  const usable = isValidIso(range.start) && isValidIso(range.end)
+  const label = usable
+    ? formatWindowLabel(range, workingDays, (count) => (count === 1 ? '1 working day' : `${count} working days`))
+    : 'no working days'
 
   return (
     <Badge
@@ -140,16 +140,7 @@ function WindowBadge({
           : 'bg-window-two-soft text-window-two-ink hover:bg-window-two-soft',
       )}
     >
-      {WINDOW_LABELS[windowKey]}: {startDay} to {endDay} {month}, {label}
+      {WINDOW_LABELS[windowKey]}: {label}
     </Badge>
   )
-}
-
-function monthBounds(iso: string): { min: string; max: string } {
-  const monthKey = iso.slice(0, 7)
-  const parts = parseMonthKey(monthKey)
-  if (!parts) return { min: '', max: '' }
-  const pad = (value: number) => (value < 10 ? `0${value}` : String(value))
-  const lastDay = new Date(parts.year, parts.month, 0).getDate()
-  return { min: `${monthKey}-01`, max: `${monthKey}-${pad(lastDay)}` }
 }

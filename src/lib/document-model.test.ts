@@ -6,6 +6,7 @@ import {
   collectExportBlockers,
   collectScheduleWarnings,
   moveWindowEdge,
+  resnapWindows,
   setWindow,
   shiftWindow,
 } from './schedule-ops'
@@ -287,6 +288,44 @@ describe('moving a visit window', () => {
     const result = moveWindowEdge(sample, 'one', 'end', '2026-11-15', monthKey, context)
     expect(result.windows.one.end.startsWith('2026-10-')).toBe(true)
     expect(result.message).toContain('inside 2026-10')
+  })
+
+  it('keeps the working-day length when pushing window two past a Friday and Saturday', () => {
+    // Without skipping non-working days the advance stalls on the first Friday.
+    const result = setWindow(sample, 'one', { start: '2026-10-04', end: '2026-10-14' }, monthKey, context)
+    expect(result.windows.one.end).toBe('2026-10-14')
+    expect(result.windows.two.start).toBe('2026-10-15')
+    // Window two had 10 working days and keeps all ten.
+    expect(countWorkingDays(result.windows.two.start, result.windows.two.end, context)).toBe(10)
+    expect(result.windows.two.end).toBe('2026-10-28')
+  })
+
+  it('re-snaps a window edge that a holiday toggle turned into a non-working day', () => {
+    const holiContext: HolidayContext = setHoliday(context, '2026-10-13', {
+      source: 'manual',
+      nameEn: 'Office closed',
+    })
+    const result = resnapWindows(sample, monthKey, holiContext)
+    // 13 October stops being a working day, so the end moves to the 14th.
+    expect(result.windows.one.end).toBe('2026-10-14')
+    expect(result.message).toContain('nearest working day')
+  })
+
+  it('moves a window start backwards when it lands on a holiday', () => {
+    const schedule = structuredClone(sample)
+    schedule.windows.two = { start: '2026-10-19', end: '2026-10-27' }
+    const holiContext: HolidayContext = setHoliday(context, '2026-10-19', {
+      source: 'manual',
+      nameEn: 'Office closed',
+    })
+    const result = resnapWindows(schedule, monthKey, holiContext)
+    expect(result.windows.two.start).toBe('2026-10-18')
+  })
+
+  it('leaves windows untouched when no edge lands on a holiday', () => {
+    const result = resnapWindows(sample, monthKey, context)
+    expect(result.windows).toEqual(sample.windows)
+    expect(result.message).toBeNull()
   })
 
   it('truncates window two rather than letting it run into the next month', () => {

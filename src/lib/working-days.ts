@@ -4,7 +4,6 @@ import {
   dayOfWeek,
   eachIsoDay,
   isValidIso,
-  monthKeyOf,
   pad2,
   parseMonthKey,
   todayIso,
@@ -256,17 +255,6 @@ export function defaultWindows(
   }
 }
 
-/** The nth (1-based) working day of a month, or null when the month is too short. */
-export function nthWorkingDayOfMonth(
-  year: number,
-  month: number,
-  n: number,
-  context: HolidayContext,
-): string | null {
-  const working = workingDaysInMonth(year, month, context)
-  return working[n - 1] ?? null
-}
-
 export interface SplitRange {
   start: string
   end: string
@@ -302,6 +290,3 @@ export function isToday(iso: string): boolean {
   return iso === todayIso()
 }
 
-export function isCurrentMonth(iso: string, monthKey: string): boolean {
-  return monthKeyOf(iso) === monthKey
-}

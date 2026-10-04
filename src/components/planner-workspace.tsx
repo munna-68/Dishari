@@ -2,8 +2,9 @@ import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import { TopBar } from '@/components/app-top-bar'
-import { PlannerCalendar, type WindowKey } from '@/components/calendar/planner-calendar'
+import { PlannerCalendar } from '@/components/calendar/planner-calendar'
 import { EmptyMonthState } from '@/components/empty-month-state'
+import { downloadBlob } from '@/lib/file-download'
 import { HolidayImportDialog } from '@/components/holiday-import-dialog'
 import { OfficersPanel } from '@/components/officers-panel'
 import { SettingsDialog } from '@/components/settings-dialog'
@@ -17,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { monthLabel, shiftMonthKey } from '@/lib/date'
 import type { ParsedHolidayRow } from '@/lib/holidays'
 import { collectExportBlockers, collectScheduleWarnings } from '@/lib/schedule-ops'
-import { rememberBranchName } from '@/lib/schema'
+import { rememberBranchName, type WindowKey } from '@/lib/schema'
 import { usePlanner } from '@/state/planner-context'
 
 export function PlannerWorkspace() {
@@ -60,7 +61,7 @@ export function PlannerWorkspace() {
     (iso: string) => {
       run({ type: 'holidays/toggleDay', iso, monthKey }, { undo: true })
     },
-    [run],
+    [run, monthKey],
   )
 
   const setWindow = useCallback(
@@ -76,10 +77,7 @@ export function PlannerWorkspace() {
     setIsBusy(true)
     void (async () => {
       try {
-        const [{ renderSchedulePdf, pdfFileName }, { downloadBlob }] = await Promise.all([
-          import('@/lib/export-pdf'),
-          import('@/lib/file-download'),
-        ])
+        const { renderSchedulePdf, pdfFileName } = await import('@/lib/export-pdf')
         downloadBlob(renderSchedulePdf(documentModel), pdfFileName(documentModel))
         toast.success('PDF downloaded.')
       } catch (error) {
@@ -95,10 +93,7 @@ export function PlannerWorkspace() {
     setIsBusy(true)
     void (async () => {
       try {
-        const [{ renderScheduleDocx, docxFileName }, { downloadBlob }] = await Promise.all([
-          import('@/lib/export-docx'),
-          import('@/lib/file-download'),
-        ])
+        const { renderScheduleDocx, docxFileName } = await import('@/lib/export-docx')
         downloadBlob(await renderScheduleDocx(documentModel), docxFileName(documentModel))
         toast.success('Word document downloaded.')
       } catch (error) {

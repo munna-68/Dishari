@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { monthKeyOf, pad2 } from './date'
+import { monthBounds, monthKeyOf, pad2 } from './date'
 import {
   countWorkingDays,
   defaultWindows,
   emptyHolidayContext,
   isWorkingDay,
   isWeeklyOff,
-  nthWorkingDayOfMonth,
   resolveDayStatus,
   setWorkingOverride,
   snapToWorkingDay,
@@ -182,13 +181,6 @@ describe('working days within a month', () => {
     expect(days).toHaveLength(21)
   })
 
-  it('finds the nth working day', () => {
-    expect(nthWorkingDayOfMonth(2026, 10, 1, base)).toBe('2026-10-01')
-    expect(nthWorkingDayOfMonth(2026, 10, 2, base)).toBe('2026-10-04')
-    expect(nthWorkingDayOfMonth(2026, 10, 10, base)).toBe('2026-10-14')
-    expect(nthWorkingDayOfMonth(2026, 10, 99, base)).toBeNull()
-  })
-
   it('returns nothing for an impossible month', () => {
     expect(workingDaysInMonth(2026, 13, base)).toEqual([])
   })
@@ -277,5 +269,12 @@ describe('month keys', () => {
   it('reads the month from an ISO date', () => {
     expect(monthKeyOf('2026-10-04')).toBe('2026-10')
     expect(`${monthKeyOf('2026-10-04')}`).toBe(`2026-${pad2(10)}`)
+  })
+
+  it('reports the first and last day of a month', () => {
+    expect(monthBounds('2026-10')).toEqual({ min: '2026-10-01', max: '2026-10-31' })
+    expect(monthBounds('2026-02')).toEqual({ min: '2026-02-01', max: '2026-02-28' })
+    expect(monthBounds('2028-02')).toEqual({ min: '2028-02-01', max: '2028-02-29' })
+    expect(monthBounds('nope')).toBeNull()
   })
 })
