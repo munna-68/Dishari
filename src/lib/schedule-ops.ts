@@ -111,11 +111,7 @@ function enforceOrder(
     return { windows: { ...windows, two: { start: one.end, end: one.end } }, pushed: true, truncated: true }
   }
 
-  let end = start
-  for (let index = 1; index < length; index += 1) {
-    const next = addDays(end, 1)
-    if (isWorkingDay(next, context)) end = next
-  }
+  let end = advanceWorkingDays(start, length, context)
 
   let truncated = false
   if (lastWorkingDay !== null && compareIso(end, lastWorkingDay) > 0) {
@@ -154,6 +150,39 @@ export function setWindow(
   return { windows, message: messages.length > 0 ? messages.join(' ') : null }
 }
 
+/**
+ * Called after a holiday toggle: any window edge that landed on a day which is
+ * no longer a working day is moved to the nearest working day, and the window
+ * order is re-checked.
+ */
+export function resnapWindows(
+  schedule: MonthSchedule,
+  monthKey: string,
+  context: HolidayContext,
+): WindowUpdateResult {
+  const bounds = monthBound(monthKey) ?? undefined
+  let working: MonthSchedule = schedule
+  const messages: string[] = []
+
+  for (const windowKey of ['one', 'two'] as const) {
+    const range = working.windows[windowKey]
+    const start = isWorkingDay(range.start, context)
+      ? range.start
+      : (snapToWorkingDay(range.start, context, 'backward', bounds) ?? range.start)
+    const end = isWorkingDay(range.end, context)
+      ? range.end
+      : (snapToWorkingDay(range.end, context, 'nearest', bounds) ?? range.end)
+
+    if (start === range.start && end === range.end) continue
+
+    const result = setWindow(working, windowKey, { start, end }, monthKey, context)
+    working = { ...working, windows: result.windows }
+    if (result.message) messages.push(result.message)
+  }
+
+  return { windows: working.windows, message: messages.length > 0 ? messages.join(' ') : null }
+}
+
 export function normaliseRange(range: DateRange): DateRange {
   return compareIso(range.start, range.end) <= 0 ? range : { start: range.end, end: range.start }
 }
@@ -188,6 +217,39 @@ export function shiftWindow(
   return setWindow(schedule, windowKey, limited, monthKey, context)
 }
 
+/**
+ * Moves a date by whole working days, which is what a calendar drag handle does:
+ * the end lands on a working day and never in the middle of a weekly off.
+ */
+export function shiftDateByWorkingDays(
+  iso: string,
+  delta: number,
+  context: HolidayContext,
+): string | null {
+  return shiftByWorkingDays(iso, delta, context)
+}
+
+/**
+ * Walks forward from `iso` by `count` working days, skipping weekly off days and
+ * holidays. A small guard stops it running forever when nothing is a working day.
+ */
+function advanceWorkingDays(iso: string, count: number, context: HolidayContext): string {
+  if (count <= 1) return iso
+  let cursor = iso
+  let moved = 0
+  let guard = 0
+  while (moved < count - 1 && guard < 1000) {
+    const next = addDays(cursor, 1)
+    if (isWorkingDay(next, context)) {
+      cursor = next
+      moved += 1
+    }
+    guard += 1
+  }
+  return cursor
+}
+
+/** Moves a date by whole working days in either direction, or null if it runs out. */
 function shiftByWorkingDays(iso: string, delta: number, context: HolidayContext): string | null {
   if (delta === 0) return iso
   const step = delta > 0 ? 1 : -1

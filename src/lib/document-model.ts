@@ -83,9 +83,9 @@ export interface DocumentModel {
 
 const COLUMN_WEIGHTS = {
   activity: 92,
-  staff: 52,
-  branch: 66,
-  visit: 46,
+  staff: 50,
+  branch: 72,
+  visit: 40,
 } as const
 
 export const SCHEDULE_COLUMNS: DocColumn[] = [

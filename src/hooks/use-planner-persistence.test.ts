@@ -315,7 +315,10 @@ describe('the persistence hook', () => {
     const { result } = renderHook(() => usePlannerPersistence(adapter))
 
     act(() => {
-      result.current.save({ settings: { ...result.current.data.settings, department: 'MEL' } })
+      result.current.save({
+        ...result.current.data,
+        settings: { ...result.current.data.settings, department: 'MEL' },
+      })
     })
 
     expect(result.current.status).toBe('pending')
@@ -334,7 +337,7 @@ describe('the persistence hook', () => {
     const { result } = renderHook(() => usePlannerPersistence(adapter))
 
     act(() => {
-      result.current.save({ months: { '2026-10': { ...result.current.data.months['2026-10'] ?? emptySample() } } })
+      result.current.save({ ...result.current.data, months: { '2026-10': emptySample() } })
     })
 
     await waitFor(() => {
@@ -365,7 +368,10 @@ describe('the persistence hook', () => {
 
     // The app still works: state updates even though nothing can be written.
     act(() => {
-      result.current.save({ settings: { ...result.current.data.settings, program: 'Microfinance Program' } })
+      result.current.save({
+        ...result.current.data,
+        settings: { ...result.current.data.settings, program: 'Microfinance Program' },
+      })
     })
     expect(result.current.data.settings.program).toBe('Microfinance Program')
   })
@@ -399,8 +405,8 @@ describe('the persistence hook', () => {
       }),
     )
 
-    expect(result.current.loadBackupText(backup).ok).toBe(true)
-    expect(result.current.loadBackupText('{"format":"nope"}').ok).toBe(false)
+    expect(() => parseBackup(backup)).not.toThrow()
+    expect(() => parseBackup('{"format":"nope"}')).toThrow()
 
     act(() => {
       result.current.applyBackup(backup)
@@ -419,6 +425,16 @@ describe('the persistence hook', () => {
 
     expect(result.current.data.months).toEqual({})
     expect(result.current.data.settings).toEqual(defaultSettings())
+  })
+
+  it('refuses to restore a file that is not a backup', () => {
+    const adapter = seededAdapter({})
+    const { result } = renderHook(() => usePlannerPersistence(adapter))
+    let restored: unknown = 'unset'
+    act(() => {
+      restored = result.current.applyBackup('{"format":"something-else"}')
+    })
+    expect(restored).toBeNull()
   })
 })
 

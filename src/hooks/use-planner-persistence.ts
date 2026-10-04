@@ -1,22 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { createStorageAdapter, listStoredMonthKeys, writeJson, type StorageAdapter } from '@/lib/storage-adapter'
 import {
   STORAGE_KEYS,
-  holidayContextFrom,
+  emptyHolidayState,
   migrateHolidays,
   migrateMonth,
   migrateSettings,
   monthStorageKey,
-  emptyHolidayState,
   parseBackup,
   type MetaRecord,
 } from '@/lib/storage'
-import {
-  createStorageAdapter,
-  listStoredMonthKeys,
-  writeJson,
-  type StorageAdapter,
-} from '@/lib/storage-adapter'
 import { SCHEMA_VERSION, defaultSettings, type AppSettings, type MonthSchedule } from '@/lib/schema'
 import type { HolidayState } from '@/lib/working-days'
 
@@ -28,135 +22,133 @@ export interface PersistedData {
   months: Record<string, MonthSchedule>
 }
 
-export interface UsePlannerPersistence {
-  data: PersistedData
-  status: SaveStatus
-  /** True once the debounced write has completed at least once. */
-  isSaved: boolean
-  /** Set when storage is unavailable or full; the UI shows a persistent banner. */
-  storageWarning: string | null
-  isPersistent: boolean
-  warnings: string[]
-  save: (next: Partial<PersistedData>) => void
-  replaceAll: (next: PersistedData) => void
-  resetAll: () => void
-  loadBackupText: (text: string) => { ok: boolean; message: string }
-  applyBackup: (text: string) => PersistedData | null
-}
-
 const AUTOSAVE_DELAY_MS = 400
 
-function parseStored(adapter: StorageAdapter, key: string): { raw: unknown; wasPresent: boolean } {
-  const raw = adapter.read(key)
-  if (raw === null) return { raw: null, wasPresent: false }
-  try {
-    return { raw: JSON.parse(raw) as unknown, wasPresent: true }
-  } catch {
-    return { raw: null, wasPresent: false }
-  }
-}
-
-/** Runs every migration once at start-up and reports anything worth telling the user. */
-export function loadPersistedData(adapter: StorageAdapter): {
-  data: PersistedData
-  warnings: string[]
-} {
-  const warnings: string[] = []
-
-  const settingsResult = migrateSettings(parseStored(adapter, STORAGE_KEYS.settings).raw)
-  warnings.push(...settingsResult.warnings)
-
-  const holidaysResult = migrateHolidays(parseStored(adapter, STORAGE_KEYS.holidays).raw)
-  warnings.push(...holidaysResult.warnings)
-
-  const months: Record<string, MonthSchedule> = {}
-  for (const monthKey of listStoredMonthKeys(adapter)) {
-    const result = migrateMonth(parseStored(adapter, monthStorageKey(monthKey)).raw, monthKey)
-    warnings.push(...result.warnings)
-    months[monthKey] = result.data
-  }
-
-  writeJson(adapter, STORAGE_KEYS.meta, {
-    schemaVersion: SCHEMA_VERSION,
-  } satisfies MetaRecord)
-
-  return { data: { settings: settingsResult.data, holidays: holidaysResult.data, months }, warnings }
-}
-
-function emptyData(): PersistedData {
+export function emptyPersistedData(): PersistedData {
   return { settings: defaultSettings(), holidays: emptyHolidayState(), months: {} }
 }
 
+function parseStored(adapter: StorageAdapter, key: string): unknown {
+  const raw = adapter.read(key)
+  if (raw === null) return null
+  try {
+    return JSON.parse(raw) as unknown
+  } catch {
+    return null
+  }
+}
+
+export interface LoadResult {
+  data: PersistedData
+  warnings: string[]
+  storageWarning: string | null
+}
+
 /**
- * Reads every key through the migration path and debounces writes back. The
- * adapter keeps working when storage is unavailable or full, so the app never
- * breaks because of it: it only surfaces a warning banner.
+ * Runs every stored record through its migration once, then writes the schema
+ * version back so a later load knows what it is looking at.
+ */
+export function loadPersistedData(adapter: StorageAdapter): LoadResult {
+  const warnings: string[] = []
+
+  const settings = migrateSettings(parseStored(adapter, STORAGE_KEYS.settings))
+  warnings.push(...settings.warnings)
+
+  const holidays = migrateHolidays(parseStored(adapter, STORAGE_KEYS.holidays))
+  warnings.push(...holidays.warnings)
+
+  const months: Record<string, MonthSchedule> = {}
+  for (const monthKey of listStoredMonthKeys(adapter)) {
+    const migrated = migrateMonth(parseStored(adapter, monthStorageKey(monthKey)), monthKey)
+    warnings.push(...migrated.warnings)
+    months[monthKey] = migrated.data
+  }
+
+  writeJson(adapter, STORAGE_KEYS.meta, { schemaVersion: SCHEMA_VERSION } satisfies MetaRecord)
+
+  return {
+    data: { settings: settings.data, holidays: holidays.data, months },
+    warnings,
+    storageWarning: describeStorageProblem(adapter),
+  }
+}
+
+function describeStorageProblem(adapter: StorageAdapter): string | null {
+  switch (adapter.problem) {
+    case 'unavailable':
+      return 'Browser storage is not available, so your work is being kept in memory only. Download a backup before you close this tab.'
+    case 'quota':
+      return 'Browser storage is full, so the latest changes are being kept in memory only. Download a backup, then remove an old month to free space.'
+    case 'unknown':
+      return 'Browser storage refused a write, so your work is being kept in memory only. Download a backup before you close this tab.'
+    default:
+      return null
+  }
+}
+
+export interface UsePlannerPersistence {
+  data: PersistedData
+  status: SaveStatus
+  isSaved: boolean
+  storageWarning: string | null
+  isPersistent: boolean
+  warnings: string[]
+  save: (next: PersistedData) => void
+  replaceAll: (next: PersistedData) => void
+  resetAll: () => PersistedData
+  applyBackup: (text: string) => PersistedData | null
+}
+
+/**
+ * Reads through the migration path on the first render (so there is no empty
+ * flash) and debounces writes back. The adapter keeps working when storage is
+ * unavailable or full, so the app only surfaces a warning banner instead of
+ * breaking.
  */
 export function usePlannerPersistence(adapter?: StorageAdapter): UsePlannerPersistence {
-  const resolvedAdapter = useMemo(() => adapter ?? createStorageAdapter(), [adapter])
-  const [data, setData] = useState<PersistedData>(() => emptyData())
-  const [status, setStatus] = useState<SaveStatus>('idle')
-  const [isSaved, setIsSaved] = useState(false)
-  const [storageWarning, setStorageWarning] = useState<string | null>(null)
-  const [warnings, setWarnings] = useState<string[]>([])
-  const hydrated = useRef(false)
-  const timer = useRef<number | null>(null)
-  const pending = useRef<PersistedData | null>(null)
+  const resolved = useMemo(() => adapter ?? createStorageAdapter(), [adapter])
+  const initial = useMemo(() => loadPersistedData(resolved), [resolved])
 
-  // Hydrate once. The adapter is stable, so this never re-runs.
-  useEffect(() => {
-    if (hydrated.current) return
-    hydrated.current = true
-    const loaded = loadPersistedData(resolvedAdapter)
-    setData(loaded.data)
-    setWarnings(loaded.warnings)
-    setStorageWarning(describeStorageProblem(resolvedAdapter))
-    setStatus('saved')
-    setIsSaved(true)
-  }, [resolvedAdapter])
+  const [data, setData] = useState<PersistedData>(initial.data)
+  const [status, setStatus] = useState<SaveStatus>('saved')
+  const [isSaved, setIsSaved] = useState(true)
+  const [storageWarning, setStorageWarning] = useState<string | null>(initial.storageWarning)
+  const [warnings] = useState<string[]>(initial.warnings)
+
+  const timer = useRef<number | null>(null)
 
   const flush = useCallback(
     (next: PersistedData) => {
-      const settingsOk = writeJson(resolvedAdapter, STORAGE_KEYS.settings, next.settings)
-      const holidaysOk = writeJson(resolvedAdapter, STORAGE_KEYS.holidays, next.holidays)
+      writeJson(resolved, STORAGE_KEYS.settings, next.settings)
+      writeJson(resolved, STORAGE_KEYS.holidays, next.holidays)
 
-      const keptKeys = new Set<string>()
-      const monthOk = Object.entries(next.months).map(([monthKey, schedule]) => {
+      const kept = new Set<string>()
+      for (const [monthKey, schedule] of Object.entries(next.months)) {
         const key = monthStorageKey(monthKey)
-        keptKeys.add(key)
-        return writeJson(resolvedAdapter, key, schedule)
-      })
-      for (const key of resolvedAdapter.keys()) {
-        if (key.startsWith(STORAGE_KEYS.monthPrefix) && !keptKeys.has(key)) resolvedAdapter.remove(key)
+        kept.add(key)
+        writeJson(resolved, key, schedule)
       }
+      for (const key of resolved.keys()) {
+        if (key.startsWith(STORAGE_KEYS.monthPrefix) && !kept.has(key)) resolved.remove(key)
+      }
+      writeJson(resolved, STORAGE_KEYS.meta, { schemaVersion: SCHEMA_VERSION } satisfies MetaRecord)
 
-      writeJson(resolvedAdapter, STORAGE_KEYS.meta, { schemaVersion: SCHEMA_VERSION } satisfies MetaRecord)
-
-      setStatus('saved')
-      setIsSaved(true)
-      setStorageWarning(describeStorageProblem(resolvedAdapter))
-      return settingsOk && holidaysOk && monthOk.every(Boolean)
+      setStorageWarning(describeStorageProblem(resolved))
     },
-    [resolvedAdapter],
+    [resolved],
   )
 
   const save = useCallback(
-    (next: Partial<PersistedData>) => {
-      setData((current) => {
-        const merged = { ...current, ...next }
-        pending.current = merged
-        return merged
-      })
+    (next: PersistedData) => {
+      setData(next)
       setStatus('pending')
       if (timer.current !== null) window.clearTimeout(timer.current)
       timer.current = window.setTimeout(() => {
         timer.current = null
-        const toWrite = pending.current
-        pending.current = null
-        if (toWrite) {
-          setStatus('saving')
-          flush(toWrite)
-        }
+        setStatus('saving')
+        flush(next)
+        setStatus('saved')
+        setIsSaved(true)
       }, AUTOSAVE_DELAY_MS)
     },
     [flush],
@@ -166,45 +158,26 @@ export function usePlannerPersistence(adapter?: StorageAdapter): UsePlannerPersi
     (next: PersistedData) => {
       if (timer.current !== null) window.clearTimeout(timer.current)
       timer.current = null
-      pending.current = null
       setData(next)
       flush(next)
+      setStatus('saved')
+      setIsSaved(true)
     },
     [flush],
   )
 
   const resetAll = useCallback(() => {
-    const fresh = emptyData()
+    const fresh = emptyPersistedData()
     replaceAll(fresh)
+    return fresh
   }, [replaceAll])
-
-  const loadBackupText = useCallback(
-    (text: string) => {
-      try {
-        const restored = parseBackup(text)
-        return { ok: true, message: `Backup ready: ${Object.keys(restored.months).length} month(s) found.` }
-      } catch (error) {
-        return {
-          ok: false,
-          message: error instanceof Error ? error.message : 'The backup file could not be read.',
-        }
-      }
-    },
-    [],
-  )
 
   const applyBackup = useCallback(
     (text: string): PersistedData | null => {
       try {
         const restored = parseBackup(text)
-        const next: PersistedData = {
-          settings: restored.settings,
-          holidays: restored.holidays,
-          months: restored.months,
-        }
-        setWarnings((current) => [...current, ...restored.warnings])
-        replaceAll(next)
-        return next
+        replaceAll(restored)
+        return restored
       } catch {
         return null
       }
@@ -224,27 +197,11 @@ export function usePlannerPersistence(adapter?: StorageAdapter): UsePlannerPersi
     status,
     isSaved,
     storageWarning,
-    isPersistent: resolvedAdapter.isPersistent && storageWarning === null,
+    isPersistent: resolved.isPersistent && storageWarning === null,
     warnings,
     save,
     replaceAll,
     resetAll,
-    loadBackupText,
     applyBackup,
   }
 }
-
-function describeStorageProblem(adapter: StorageAdapter): string | null {
-  switch (adapter.problem) {
-    case 'unavailable':
-      return 'Browser storage is not available, so your work is being kept in memory only. Download a backup before you close this tab.'
-    case 'quota':
-      return 'Browser storage is full, so the latest changes are being kept in memory only. Download a backup, then remove an old month to free space.'
-    case 'unknown':
-      return 'Browser storage refused a write. Your work is being kept in memory only. Download a backup before you close this tab.'
-    default:
-      return null
-  }
-}
-
-export { holidayContextFrom }

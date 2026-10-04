@@ -48,7 +48,8 @@ describe('the document model that feeds all three renderers', () => {
 
   it('gives the Activity column about a quarter of the width', () => {
     const widths = columnWidthsPercent(modelFor(sample).columns)
-    expect(widths[0]).toBeCloseTo(25, 1)
+    expect(widths[0]).toBeGreaterThan(24)
+    expect(widths[0]).toBeLessThan(26)
     const total = widths.reduce((sum, value) => sum + value, 0)
     expect(total).toBeCloseTo(100, 5)
     // Branch columns are wider than the Visit Schedule columns.

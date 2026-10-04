@@ -10,37 +10,44 @@ const MARGIN_MM = 12
 const FOOTER_MM = 8
 
 const CONTENT_WIDTH_MM = PAGE_WIDTH_MM - MARGIN_MM * 2
+const TABLE_TOP_MM = 47
+/** Vertical space the table has: from the table top to just above the footer. */
+const TABLE_HEIGHT_MM = PAGE_HEIGHT_MM - TABLE_TOP_MM - MARGIN_MM - FOOTER_MM
+/** Rounding slack so the last row never tips onto a second page. */
+const TABLE_SLACK_MM = 5
+const MIN_ROW_HEIGHT_MM = 6
+const MAX_ROW_HEIGHT_MM = 16
+const HEADER_ROW_MAX_MM = 10
+const BODY_CELL_PADDING_MM = 1.1
 
 const RULE: [number, number, number] = [70, 70, 70]
 const HEADER_FILL: [number, number, number] = [224, 224, 224]
 const INK: [number, number, number] = [20, 20, 20]
 
 const FONT_SIZE_BODY = 8.5
-const LINE_HEIGHT_MM = 3.6
-/** Width of the "12." gutter that continuation lines hang under. */
-const NUMBER_GUTTER_MM = 5.5
-
-export function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  anchor.rel = 'noopener'
-  document.body.append(anchor)
-  anchor.click()
-  anchor.remove()
-  // Revoke a tick later so every browser has started the download.
-  window.setTimeout(() => URL.revokeObjectURL(url), 4_000)
-}
+/** Guards against rounding pushing a line over the cell edge. */
+const SAFETY_MM = 0.6
 
 /**
  * Wraps the numbered activity list itself so each continuation line is indented
  * under the text rather than under the number. Doing it up front means
  * AutoTable still measures the row height correctly.
+ *
+ * The indent is measured rather than guessed: every produced line is guaranteed
+ * to fit the cell width, so AutoTable never re-wraps and never inflates the
+ * merged cell past the page.
  */
-function wrapActivityCell(doc: jsPDF, cell: DocCell, widthMm: number): string {
-  const textWidth = Math.max(10, widthMm - 2 - NUMBER_GUTTER_MM)
+function wrapActivityCell(doc: jsPDF, cell: DocCell, cellWidthMm: number): string {
+  const available = cellWidthMm - 2 * BODY_CELL_PADDING_MM
   doc.setFontSize(FONT_SIZE_BODY)
+
+  const nbspWidth = doc.getTextWidth('\u00A0')
+  const widestNumber = doc.getTextWidth('10.  ')
+  const indentCount = Math.max(1, Math.ceil(widestNumber / nbspWidth))
+  const indentWidth = indentCount * nbspWidth
+  const indent = '\u00A0'.repeat(indentCount)
+  const textWidth = Math.max(10, available - indentWidth - SAFETY_MM)
+
   const out: string[] = []
 
   for (const rawLine of cell.text.split('\n')) {
@@ -56,9 +63,7 @@ function wrapActivityCell(doc: jsPDF, cell: DocCell, widthMm: number): string {
       out.push(number)
       continue
     }
-    const first = wrapped[0] ?? ''
-    out.push(`${number}  ${first}`)
-    const indent = '\u00A0'.repeat(5)
+    out.push(`${number}  ${wrapped[0] ?? ''}`)
     for (const continuation of wrapped.slice(1)) out.push(`${indent}${continuation}`)
   }
 
@@ -69,7 +74,8 @@ function toCell(cell: DocCell, activityWidthMm: number, doc: jsPDF): CellDef {
   const content = cell.hangingIndent ? wrapActivityCell(doc, cell, activityWidthMm) : cell.text
   const styles: Record<string, unknown> = {
     halign: cell.align,
-    valign: 'middle',
+    // The tall merged activity list reads better from the top of its cell.
+    valign: cell.hangingIndent ? 'top' : 'middle',
     bold: cell.bold,
   }
   if (cell.shaded) styles.fillColor = HEADER_FILL
@@ -77,14 +83,17 @@ function toCell(cell: DocCell, activityWidthMm: number, doc: jsPDF): CellDef {
 }
 
 /**
- * Builds the landscape A4 PDF that mirrors the reference sheet: centred
- * organisation block, left-aligned programme line, one bordered table with a
- * grey bold header, a merged Activity/Task cell and a page-number footer.
+ * Draws the whole sheet with one explicit row height. AutoTable paginates
+ * rowSpan tables unpredictably, so the caller retries with shorter rows rather
+ * than trusting the break behaviour.
  */
-export function renderSchedulePdf(model: DocumentModel): Blob {
+function drawSheet(
+  model: DocumentModel,
+  widths: number[],
+  activityWidthMm: number,
+  rowHeight: number,
+): jsPDF {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
-  const widths = columnWidthsPercent(model.columns)
-  const activityWidthMm = (CONTENT_WIDTH_MM * (widths[0] ?? 100)) / 100
 
   doc.setTextColor(...INK)
 
@@ -123,7 +132,7 @@ export function renderSchedulePdf(model: DocumentModel): Blob {
   )
 
   autoTable(doc, {
-    startY: 47,
+    startY: TABLE_TOP_MM,
     margin: {
       left: MARGIN_MM,
       right: MARGIN_MM,
@@ -145,6 +154,7 @@ export function renderSchedulePdf(model: DocumentModel): Blob {
       valign: 'middle',
       lineWidth: 0.3,
       lineColor: RULE,
+      minCellHeight: Math.min(rowHeight, HEADER_ROW_MAX_MM),
     },
     bodyStyles: {
       textColor: INK,
@@ -153,12 +163,13 @@ export function renderSchedulePdf(model: DocumentModel): Blob {
       lineWidth: 0.3,
       lineColor: RULE,
       overflow: 'linebreak',
-      minCellHeight: LINE_HEIGHT_MM,
+      minCellHeight: rowHeight,
     },
     columnStyles,
-    rowPageBreak: 'avoid',
+    // `rowPageBreak: 'avoid'` must stay off: AutoTable then forces a new page
+    // for any row containing a row span, which throws the whole table onto page 2.
     didParseCell(data) {
-      if (data.section === 'body') data.cell.styles.cellPadding = 1.1
+      if (data.section === 'body') data.cell.styles.cellPadding = BODY_CELL_PADDING_MM
     },
     didDrawPage(data) {
       doc.setFont('helvetica', 'normal')
@@ -170,7 +181,45 @@ export function renderSchedulePdf(model: DocumentModel): Blob {
     },
   })
 
-  return doc.output('blob')
+  return doc
+}
+
+/** Tallest first, so a normal sheet keeps the generous row height of the paper original. */
+function candidateRowHeights(officerRowCount: number): number[] {
+  const rowTotal = Math.max(1, officerRowCount + 1)
+  const tallest = Math.min(
+    MAX_ROW_HEIGHT_MM,
+    (TABLE_HEIGHT_MM - TABLE_SLACK_MM) / rowTotal,
+  )
+  const heights: number[] = []
+  for (let height = tallest; height >= MIN_ROW_HEIGHT_MM; height -= 0.4) {
+    heights.push(Math.round(height * 10) / 10)
+  }
+  return heights
+}
+
+/**
+ * Builds the landscape A4 PDF that mirrors the reference sheet: centred
+ * organisation block, left-aligned programme line, one bordered table with a
+ * grey bold header, a merged Activity/Task cell and a page-number footer.
+ *
+ * The row height is chosen by trying progressively shorter rows until the sheet
+ * fits on one page, which is what keeps a normal month on a single sheet.
+ */
+export function renderSchedulePdf(model: DocumentModel): Blob {
+  const widths = columnWidthsPercent(model.columns)
+  const activityWidthMm = (CONTENT_WIDTH_MM * (widths[0] ?? 100)) / 100
+  const heights = candidateRowHeights(model.rows.length - 1)
+
+  let last: jsPDF | null = null
+  for (const rowHeight of heights) {
+    const doc = drawSheet(model, widths, activityWidthMm, rowHeight)
+    last = doc
+    if (doc.getNumberOfPages() === 1) return doc.output('blob')
+  }
+
+  // Nothing fit, so let AutoTable paginate with the shortest rows we allow.
+  return (last ?? drawSheet(model, widths, activityWidthMm, MIN_ROW_HEIGHT_MM)).output('blob')
 }
 
 export function pdfFileName(model: DocumentModel): string {
