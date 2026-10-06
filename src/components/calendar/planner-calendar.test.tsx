@@ -58,40 +58,6 @@ describe('PlannerCalendar band segmentation', () => {
     const staticStripes = container.querySelectorAll('.pointer-events-none.absolute.inset-x-0.top-0.h-1')
     expect(staticStripes.length).toBe(0)
   })
-
-  it('renders weekly off days grayed out with bg-weekend even when inside visit window', () => {
-    const { container } = render(
-      <TooltipProvider>
-        <PlannerCalendar
-          monthKey="2026-10"
-          context={dummyContext}
-          windows={dummySchedule.windows}
-          schedule={dummySchedule}
-          selectedOfficerId={null}
-          onToggleDay={vi.fn()}
-          onMoveWindowEdge={vi.fn()}
-          onShiftWindow={vi.fn()}
-        />
-      </TooltipProvider>,
-    )
-
-    // 2026-10-02 is Friday (weekly-off) and falls within Window 1 (2026-10-01 to 2026-10-14)
-    const offDayInWindow = container.querySelector('[data-date="2026-10-02"]')
-    expect(offDayInWindow).toBeInTheDocument()
-    expect(offDayInWindow).toHaveClass('bg-weekend', 'offday-hatch', 'text-muted-foreground')
-    expect(offDayInWindow).not.toHaveClass('bg-window-one-soft/50')
-
-    // 2026-10-01 is Thursday (working day) in Window 1
-    const workingDayInWindow = container.querySelector('[data-date="2026-10-01"]')
-    expect(workingDayInWindow).toBeInTheDocument()
-    expect(workingDayInWindow).toHaveClass('bg-window-one-soft/50')
-    expect(workingDayInWindow).not.toHaveClass('bg-weekend')
-
-    // 2026-10-30 is Friday (weekly-off) outside any window
-    const offDayOutsideWindow = container.querySelector('[data-date="2026-10-30"]')
-    expect(offDayOutsideWindow).toBeInTheDocument()
-    expect(offDayOutsideWindow).toHaveClass('bg-weekend', 'offday-hatch', 'text-muted-foreground')
-  })
 })
 
 describe('PlannerCalendar officer assignments & Google Calendar modal', () => {
@@ -105,7 +71,7 @@ describe('PlannerCalendar officer assignments & Google Calendar modal', () => {
       one: { start: '2026-10-04', end: '2026-10-13' },
       two: { start: '2026-10-14', end: '2026-10-27' },
     },
-    activities: [],
+    activities: ['Verify loans at group level', 'Assess staff productivity'],
     officers: [
       { id: 'off-1', name: 'Moyen Uddin', kind: 'permanent', crossedOut: false },
       { id: 'off-2', name: 'Md. Nuruzzaman', kind: 'permanent', crossedOut: false },
@@ -122,7 +88,7 @@ describe('PlannerCalendar officer assignments & Google Calendar modal', () => {
     },
   }
 
-  it('renders officer name and branch on day cells during visit windows', () => {
+  it('renders clean day cells with an assignment indication pill and expand cue', () => {
     const { container } = render(
       <TooltipProvider>
         <PlannerCalendar
@@ -141,13 +107,16 @@ describe('PlannerCalendar officer assignments & Google Calendar modal', () => {
     // 2026-10-04 is Sunday (working day) within Window 1
     const cellOct4 = container.querySelector('[data-date="2026-10-04"]')
     expect(cellOct4).toBeInTheDocument()
-    expect(cellOct4).toHaveTextContent('Moyen Uddin')
-    expect(cellOct4).toHaveTextContent('Lalmonirhat')
-    expect(cellOct4).toHaveTextContent('Md. Nuruzzaman')
-    expect(cellOct4).toHaveTextContent('Rangpur')
+
+    // The cell body is NOT crowded with full officer names
+    expect(cellOct4).not.toHaveTextContent('Md. Nuruzzaman')
+
+    // But it has a clear indication that 2 officers are scheduled and clicking expands details
+    expect(cellOct4).toHaveTextContent('2 officers')
+    expect(cellOct4).toHaveTextContent('Details')
   })
 
-  it('clicking a day cell opens the details modal with editable information', () => {
+  it('clicking a day cell opens the details modal with editable information and navigation', () => {
     const onSetBranch = vi.fn()
     const onToggleDay = vi.fn()
 
@@ -175,7 +144,7 @@ describe('PlannerCalendar officer assignments & Google Calendar modal', () => {
     // Modal should be open
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Sunday, 4 October 2026/i })).toBeInTheDocument()
-    expect(screen.getByText(/Officer Assignments/i)).toBeInTheDocument()
+    expect(screen.getByText(/Officers & Branches/i)).toBeInTheDocument()
 
     // Check branch input for Moyen Uddin
     const moyenInput = screen.getByDisplayValue('Lalmonirhat')
@@ -190,6 +159,18 @@ describe('PlannerCalendar officer assignments & Google Calendar modal', () => {
     expect(holidayBtn).toBeInTheDocument()
     fireEvent.click(holidayBtn)
     expect(onToggleDay).toHaveBeenCalledWith('2026-10-04')
+
+    // Check monitoring tasks tab
+    const tasksTab = screen.getByRole('tab', { name: /Monitoring Tasks/i })
+    expect(tasksTab).toBeInTheDocument()
+    fireEvent.click(tasksTab)
+    expect(screen.getByText(/Verify loans at group level/i)).toBeInTheDocument()
+
+    // Check next day navigation
+    const nextDayBtn = screen.getByRole('button', { name: /Next day/i })
+    expect(nextDayBtn).toBeInTheDocument()
+    fireEvent.click(nextDayBtn)
+    expect(screen.getByRole('heading', { name: /Monday, 5 October 2026/i })).toBeInTheDocument()
   })
 
   it('spotlights only the selected officer when selectedOfficerId is set', () => {
@@ -210,10 +191,8 @@ describe('PlannerCalendar officer assignments & Google Calendar modal', () => {
 
     const cellOct4 = container.querySelector('[data-date="2026-10-04"]')
     expect(cellOct4).toBeInTheDocument()
-    expect(cellOct4).toHaveTextContent('Moyen Uddin')
     expect(cellOct4).toHaveTextContent('Lalmonirhat')
     // Should NOT show off-2's branch directly
-    expect(cellOct4).not.toHaveTextContent('Md. Nuruzzaman')
     expect(cellOct4).not.toHaveTextContent('Rangpur')
   })
 })

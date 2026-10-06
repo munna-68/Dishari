@@ -238,10 +238,6 @@ export function PlannerCalendar({
                     setActiveModalDate(iso)
                     setFocusedOfficerId(null)
                   }}
-                  onAssignmentClick={(officerId) => {
-                    setActiveModalDate(iso)
-                    setFocusedOfficerId(officerId)
-                  }}
                 />
               )
             })}
@@ -261,7 +257,7 @@ export function PlannerCalendar({
         </DndContext>
 
         <p className="text-xs text-muted-foreground">
-          Click any date to view details and edit officer branch assignments, or adjust holiday status. Drag a band end to move that window edge, or drag the middle of a band to shift the window.
+          Click any date to expand details, view or edit officer branch assignments, and adjust holiday status. Drag a band end to move that window edge, or drag the middle of a band to shift the window.
         </p>
       </CardContent>
 
@@ -280,6 +276,10 @@ export function PlannerCalendar({
           schedule={schedule}
           settings={settings ?? defaultSettings()}
           context={context}
+          onNavigateDate={(nextIso) => {
+            setActiveModalDate(nextIso)
+            setFocusedOfficerId(null)
+          }}
           onSetBranch={onSetBranch ?? (() => {})}
           onSetCustomRanges={onSetCustomRanges ?? (() => {})}
           onSwapBranches={onSwapBranches}

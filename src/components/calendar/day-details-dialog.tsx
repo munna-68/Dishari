@@ -4,9 +4,11 @@ import {
   CalendarCheck,
   CalendarDays,
   CalendarOff,
-  Check,
-  MapPin,
+  ChevronLeft,
+  ChevronRight,
+  ListTodo,
   RotateCcw,
+  Sparkles,
   Users,
 } from 'lucide-react'
 
@@ -30,8 +32,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatRangeText } from '@/lib/date-format'
 import {
+  addDays,
   compareIso,
   dateInputValue,
   fromIso,
@@ -55,6 +59,7 @@ export interface DayDetailsDialogProps {
   schedule: MonthSchedule
   settings: AppSettings
   context: HolidayContext
+  onNavigateDate?: (nextIso: string) => void
   onSetBranch: (officerId: string, windowKey: WindowKey, branch: string) => void
   onSetCustomRanges: (officerId: string, windowKey: WindowKey, ranges: DateRange[]) => void
   onSwapBranches?: (windowKey: WindowKey, fromId: string, toId: string) => void
@@ -78,6 +83,7 @@ export function DayDetailsDialog({
   schedule,
   settings,
   context,
+  onNavigateDate,
   onSetBranch,
   onSetCustomRanges,
   onSwapBranches,
@@ -85,6 +91,7 @@ export function DayDetailsDialog({
   onToggleDay,
 }: DayDetailsDialogProps) {
   const [searchTerm, setSearchTerm] = useState('')
+  const [activeTab, setActiveTab] = useState<'officers' | 'activities'>('officers')
 
   if (!iso) return null
 
@@ -118,7 +125,7 @@ export function DayDetailsDialog({
     [allActiveOfficers, assignedOfficerIds],
   )
 
-  // Sort assignments: if a specific officer was clicked, put them first
+  // Sort assignments: if a specific officer was focused, put them first
   const sortedAssignments = useMemo(() => {
     let list = [...assignments]
     if (focusedOfficerId) {
@@ -140,36 +147,67 @@ export function DayDetailsDialog({
     return list
   }, [assignments, focusedOfficerId, searchTerm])
 
+  const assignedBranchesCount = assignments.filter((a) => a.branch.trim() !== '').length
+
   function handleAssignUnassignedOfficer(officerId: string) {
     if (!iso) return
     const targetIso: string = iso
-    // Determine which window makes sense:
-    // If inside window two, assign to two; otherwise default to one
     const windowKey: WindowKey = inWindowTwo && !inWindowOne ? 'two' : 'one'
-    // If date is outside the window, set customRanges covering this date
     const windowRange = schedule.windows[windowKey]
     if (!isWithin(targetIso, windowRange.start, windowRange.end)) {
       onSetCustomRanges(officerId, windowKey, [{ start: targetIso, end: targetIso }])
     } else {
-      // If within window, following window will include this date
       onSetCustomRanges(officerId, windowKey, [])
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] w-full max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
-        {/* Header */}
-        <DialogHeader className="border-b px-5 pt-5 pb-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <DialogTitle className="text-lg font-semibold tracking-tight text-foreground">
-              {formattedDayTitle}
-            </DialogTitle>
-            {dayIsToday ? (
-              <Badge variant="secondary" className="px-1.5 py-0 text-xs font-semibold uppercase">
-                Today
-              </Badge>
-            ) : null}
+      <DialogContent className="flex max-h-[88vh] w-full sm:max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
+        {/* Header with Day Navigation (< and >) */}
+        <DialogHeader className="border-b px-5 pt-4 pb-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
+              {onNavigateDate ? (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-7 rounded-md"
+                  onClick={() => onNavigateDate(addDays(iso, -1))}
+                  title="Previous day"
+                >
+                  <ChevronLeft className="size-4" />
+                  <span className="sr-only">Previous day</span>
+                </Button>
+              ) : null}
+
+              <DialogTitle className="text-base sm:text-lg font-semibold tracking-tight text-foreground truncate">
+                {formattedDayTitle}
+              </DialogTitle>
+
+              {onNavigateDate ? (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-7 rounded-md"
+                  onClick={() => onNavigateDate(addDays(iso, 1))}
+                  title="Next day"
+                >
+                  <ChevronRight className="size-4" />
+                  <span className="sr-only">Next day</span>
+                </Button>
+              ) : null}
+
+              {dayIsToday ? (
+                <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px] font-semibold uppercase">
+                  Today
+                </Badge>
+              ) : null}
+            </div>
+
+            <DialogDescription className="sr-only">
+              Schedule details, officers, branches, and activities for {formattedDayTitle}
+            </DialogDescription>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
@@ -211,14 +249,10 @@ export function DayDetailsDialog({
               <span className="text-muted-foreground">Outside main visit windows</span>
             ) : null}
           </div>
-
-          <DialogDescription className="sr-only">
-            Details and assignments for {formattedDayTitle}
-          </DialogDescription>
         </DialogHeader>
 
         {/* Day Status Control Bar */}
-        <div className="flex items-center justify-between gap-3 border-b bg-muted/30 px-5 py-2 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/25 px-5 py-2.5 text-xs">
           <div className="text-muted-foreground">
             {status.kind === 'holiday'
               ? status.holiday.source === 'imported'
@@ -289,43 +323,70 @@ export function DayDetailsDialog({
           </div>
         </div>
 
-        {/* Content body */}
-        <div className="flex-1 space-y-4 overflow-y-auto p-5">
-          {/* Section: Officers & Branches */}
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Users className="size-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Officer Assignments ({assignments.length})
-                </h3>
-              </div>
+        {/* Tabbed view: Officers & Branches vs Monitoring Activities */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(val) => setActiveTab(val as 'officers' | 'activities')}
+          className="flex flex-1 flex-col overflow-hidden min-h-0"
+        >
+          <div className="border-b px-5 pt-2 bg-muted/10 flex items-center justify-between">
+            <TabsList className="h-8">
+              <TabsTrigger
+                value="officers"
+                onClick={() => setActiveTab('officers')}
+                className="text-xs h-7 px-3 gap-1.5"
+              >
+                <Users className="size-3.5" />
+                Officers & Branches ({assignments.length})
+              </TabsTrigger>
+              <TabsTrigger
+                value="activities"
+                onClick={() => setActiveTab('activities')}
+                className="text-xs h-7 px-3 gap-1.5"
+              >
+                <ListTodo className="size-3.5" />
+                Monitoring Tasks ({schedule.activities.length})
+              </TabsTrigger>
+            </TabsList>
 
-              {assignments.length > 3 ? (
-                <div className="w-48">
+            {assignments.length > 0 && (
+              <span className="text-[11px] text-muted-foreground hidden sm:inline">
+                {assignedBranchesCount} of {assignments.length} branches assigned
+              </span>
+            )}
+          </div>
+
+          {/* Officers Tab */}
+          <TabsContent value="officers" className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 mt-0 min-h-0">
+            {assignments.length > 4 ? (
+              <div className="flex items-center justify-between gap-2 pb-1">
+                <p className="text-xs text-muted-foreground">
+                  View and update branch assignments for {formattedDayTitle}:
+                </p>
+                <div className="w-56">
                   <Input
                     type="search"
-                    placeholder="Search officer / branch..."
+                    placeholder="Search officer or branch..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="h-7 text-xs"
+                    className="h-7 text-xs bg-background"
                   />
                 </div>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
 
             {assignments.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-                <CalendarDays className="mx-auto mb-2 size-6 opacity-40" />
-                <p className="font-medium">No officers scheduled for this date.</p>
-                <p className="text-xs text-muted-foreground/80 mt-1">
+              <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                <CalendarDays className="mx-auto mb-2 size-7 opacity-40" />
+                <p className="font-medium text-foreground">No officers scheduled for this date.</p>
+                <p className="text-xs text-muted-foreground mt-1">
                   Visits happen during Window 1 ({schedule.windows.one.start} to {schedule.windows.one.end}) or Window 2 ({schedule.windows.two.start} to {schedule.windows.two.end}).
                 </p>
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 {sortedAssignments.map((assignment) => (
-                  <AssignmentEditCard
+                  <OfficerAssignmentRow
                     key={`${assignment.officer.id}-${assignment.windowKey}`}
                     assignment={assignment}
                     isFocused={assignment.officer.id === focusedOfficerId}
@@ -343,41 +404,65 @@ export function DayDetailsDialog({
                 ))}
               </div>
             )}
-          </div>
 
-          {/* Section: Assign another officer */}
-          {unassignedOfficers.length > 0 ? (
-            <div className="rounded-lg border border-dashed bg-muted/10 p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="space-y-0.5">
-                  <p className="text-xs font-medium text-foreground">Assign another officer to this date</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {unassignedOfficers.length} officer{unassignedOfficers.length === 1 ? '' : 's'} not scheduled on this day
-                  </p>
-                </div>
-                <div className="w-56">
-                  <Select onValueChange={handleAssignUnassignedOfficer}>
-                    <SelectTrigger className="h-7 text-xs">
-                      <SelectValue placeholder="+ Schedule an officer..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {unassignedOfficers.map((o) => (
-                        <SelectItem key={o.id} value={o.id} className="text-xs">
-                          {o.name} {o.kind === 'temporary' ? '(Temp)' : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            {/* Assign an unassigned officer section */}
+            {unassignedOfficers.length > 0 ? (
+              <div className="rounded-lg border border-dashed bg-muted/15 p-3 mt-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-medium text-foreground">Schedule another officer for this date</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {unassignedOfficers.length} officer{unassignedOfficers.length === 1 ? '' : 's'} not scheduled on this day
+                    </p>
+                  </div>
+                  <div className="w-56">
+                    <Select onValueChange={handleAssignUnassignedOfficer}>
+                      <SelectTrigger className="h-7 text-xs bg-background">
+                        <SelectValue placeholder="+ Schedule an officer..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {unassignedOfficers.map((o) => (
+                          <SelectItem key={o.id} value={o.id} className="text-xs">
+                            {o.name} {o.kind === 'temporary' ? '(Temp)' : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
+            ) : null}
+          </TabsContent>
+
+          {/* Activities Tab */}
+          <TabsContent value="activities" className="flex-1 overflow-y-auto p-4 sm:p-5 mt-0 space-y-3 min-h-0">
+            <div>
+              <h4 className="text-sm font-semibold text-foreground">Monthly Monitoring Tasks</h4>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                The responsible officers carry out these tasks during their branch monitoring visits:
+              </p>
             </div>
-          ) : null}
-        </div>
+
+            <div className="space-y-2">
+              {schedule.activities.map((act, index) => (
+                <div
+                  key={index}
+                  className="flex items-start gap-3 rounded-lg border bg-card p-3 text-xs shadow-2xs"
+                >
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
+                    {index + 1}
+                  </span>
+                  <span className="text-foreground leading-relaxed font-normal pt-0.5">{act}</span>
+                </div>
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
 
         {/* Footer */}
         <DialogFooter className="border-t bg-muted/20 px-5 py-3 flex-row items-center justify-between sm:justify-between">
           <p className="text-xs text-muted-foreground">
-            Changes update the schedule and export tables immediately.
+            Changes update the schedule, table, and exports automatically.
           </p>
           <Button size="sm" onClick={() => onOpenChange(false)}>
             Done
@@ -388,7 +473,7 @@ export function DayDetailsDialog({
   )
 }
 
-function AssignmentEditCard({
+function OfficerAssignmentRow({
   assignment,
   isFocused,
   allOfficersInWindow,
@@ -411,14 +496,9 @@ function AssignmentEditCard({
   onFollowWindow: () => void
   onSwapBranches: (targetOfficerId: string) => void
 }) {
-  const [branchDraft, setBranchDraft] = useState(assignment.branch)
   const [editingDates, setEditingDates] = useState(false)
   const [swapOpen, setSwapOpen] = useState(false)
-
-  // Keep draft in sync if external assignment changes
-  if (assignment.branch !== branchDraft && document.activeElement?.id !== `branch-input-${assignment.officer.id}`) {
-    setBranchDraft(assignment.branch)
-  }
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false)
 
   const rangeSummary = useMemo(() => {
     return formatRangeText(assignment.ranges, { splitAroundHolidays: false, context })
@@ -429,187 +509,187 @@ function AssignmentEditCard({
     [allOfficersInWindow, assignment.officer.id],
   )
 
-  const quickSuggestions = useMemo(() => {
+  const suggestions = useMemo(() => {
     const list: string[] = []
     const seen = new Set<string>()
-    for (const b of [...QUICK_BRANCHES, ...rememberedBranches.slice(0, 4)]) {
+    for (const b of [...QUICK_BRANCHES, ...rememberedBranches.slice(0, 8)]) {
       const key = b.trim().toLowerCase()
       if (key && !seen.has(key) && key !== assignment.branch.trim().toLowerCase()) {
         seen.add(key)
         list.push(b)
       }
     }
-    return list.slice(0, 4)
+    return list
   }, [rememberedBranches, assignment.branch])
 
   return (
     <div
       className={cn(
-        'rounded-lg border p-3 transition-colors space-y-2.5',
-        isFocused ? 'border-primary ring-1 ring-primary/40 bg-primary/5' : 'bg-card',
+        'rounded-lg border p-3 bg-card transition-colors space-y-2',
+        isFocused ? 'border-primary ring-1 ring-primary/40 bg-primary/5' : 'hover:border-border',
       )}
     >
-      {/* Officer Header */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Officer name & window */}
+        <div className="flex items-center gap-2.5 min-w-[210px]">
           <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground">
             {officerInitials(assignment.officer.name)}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="truncate text-sm font-semibold text-foreground">
+              <span className="text-xs font-semibold text-foreground truncate">
                 {assignment.officer.name}
               </span>
               {assignment.officer.kind === 'temporary' ? (
-                <Badge variant="outline" className="px-1 py-0 text-[10px]">
+                <Badge variant="outline" className="px-1 py-0 text-[9px]">
                   Temp
                 </Badge>
               ) : null}
             </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Badge
-            variant="outline"
-            className={cn(
-              'px-1.5 py-0.5 text-[11px] font-medium',
-              assignment.windowKey === 'one'
-                ? 'border-window-one/40 bg-window-one/15 text-window-one'
-                : 'border-window-two/40 bg-window-two/15 text-window-two',
-            )}
-          >
-            {assignment.windowKey === 'one' ? 'Window 1' : 'Window 2'}
-          </Badge>
-
-          {/* Swap branch menu */}
-          {otherOfficers.length > 0 ? (
-            <Popover open={swapOpen} onOpenChange={setSwapOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground"
-                  title="Swap branch with another officer"
-                >
-                  <ArrowLeftRight className="size-3" />
-                  <span className="sr-only">Swap branch</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-56 p-2 text-xs" align="end">
-                <p className="font-medium mb-1.5">Swap branch with:</p>
-                <div className="max-h-48 overflow-y-auto space-y-1">
-                  {otherOfficers.map((other) => (
-                    <button
-                      key={other.id}
-                      type="button"
-                      onClick={() => {
-                        onSwapBranches(other.id)
-                        setSwapOpen(false)
-                      }}
-                      className="w-full text-left rounded px-2 py-1 hover:bg-accent truncate text-xs"
-                    >
-                      {other.name}
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Branch field */}
-      <div className="space-y-1">
-        <div className="flex items-center justify-between text-xs">
-          <Label
-            htmlFor={`branch-input-${assignment.officer.id}`}
-            className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground"
-          >
-            <MapPin className="size-3" />
-            Branch / Location
-          </Label>
-          {assignment.branch.trim() ? (
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5">
-              <Check className="size-2.5" /> Assigned
-            </span>
-          ) : (
-            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-              Not assigned yet
-            </span>
-          )}
-        </div>
-
-        <Input
-          id={`branch-input-${assignment.officer.id}`}
-          type="text"
-          value={branchDraft}
-          placeholder="Enter branch name (e.g. Lalmonirhat)"
-          onChange={(e) => {
-            setBranchDraft(e.target.value)
-            onSetBranch(e.target.value)
-          }}
-          className="h-8 text-xs bg-background"
-        />
-
-        {quickSuggestions.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-1 pt-0.5">
-            <span className="text-[10px] text-muted-foreground mr-0.5">Quick:</span>
-            {quickSuggestions.map((suggestion) => (
-              <button
-                key={suggestion}
-                type="button"
-                onClick={() => {
-                  const next = branchDraft.trim() === '' ? suggestion : `${branchDraft.trim()} ${suggestion}`
-                  setBranchDraft(next)
-                  onSetBranch(next)
-                }}
-                className="rounded-full border bg-muted/30 px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <Badge
+                variant="outline"
+                className={cn(
+                  'px-1 py-0 text-[10px] font-medium border-0',
+                  assignment.windowKey === 'one'
+                    ? 'bg-window-one/15 text-window-one'
+                    : 'bg-window-two/15 text-window-two',
+                )}
               >
-                + {suggestion}
-              </button>
-            ))}
+                {assignment.windowKey === 'one' ? 'Window 1' : 'Window 2'}
+              </Badge>
+              <span>·</span>
+              <span className="truncate">{rangeSummary}</span>
+            </div>
           </div>
-        ) : null}
-      </div>
-
-      {/* Schedule row */}
-      <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t text-xs">
-        <div className="text-[11px] text-muted-foreground">
-          <span>Schedule: </span>
-          <span className="font-medium text-foreground">{rangeSummary}</span>
-          <span className="text-[10px] opacity-70 ml-1">
-            {assignment.isCustomRange ? '(custom)' : '(window)'}
-          </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          {assignment.isCustomRange ? (
+        {/* Branch input with datalist and quick tools */}
+        <div className="flex-1 min-w-[260px]">
+          <div className="flex items-center gap-1.5">
+            <div className="relative flex-1">
+              <input
+                id={`branch-input-${assignment.officer.id}`}
+                list={`branch-list-${assignment.officer.id}`}
+                type="text"
+                value={assignment.branch}
+                placeholder="Branch name (e.g. Lalmonirhat)"
+                onChange={(e) => onSetBranch(e.target.value)}
+                className="h-8 w-full rounded-md border bg-background px-2.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <datalist id={`branch-list-${assignment.officer.id}`}>
+                {rememberedBranches.map((b) => (
+                  <option key={b} value={b} />
+                ))}
+                {QUICK_BRANCHES.map((b) => (
+                  <option key={b} value={b} />
+                ))}
+              </datalist>
+            </div>
+
+            {/* Quick suggestions popover button */}
+            {suggestions.length > 0 ? (
+              <Popover open={suggestionsOpen} onOpenChange={setSuggestionsOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground shrink-0 gap-1"
+                    title="Quick branch suggestions"
+                  >
+                    <Sparkles className="size-3 text-primary" />
+                    <span className="hidden md:inline text-[11px]">Suggestions</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-2 text-xs" align="end">
+                  <p className="font-semibold text-xs mb-1.5 text-foreground">Quick Branch Options:</p>
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {suggestions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => {
+                          const current = assignment.branch.trim()
+                          const next = current ? `${current} ${s}` : s
+                          onSetBranch(next)
+                          setSuggestionsOpen(false)
+                        }}
+                        className="w-full text-left rounded px-2 py-1 hover:bg-accent text-xs truncate"
+                      >
+                        + {s}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ) : null}
+
+            {/* Swap branch popover */}
+            {otherOfficers.length > 0 ? (
+              <Popover open={swapOpen} onOpenChange={setSwapOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground shrink-0"
+                    title="Swap branch with another officer in this window"
+                  >
+                    <ArrowLeftRight className="size-3.5" />
+                    <span className="sr-only">Swap</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2 text-xs" align="end">
+                  <p className="font-semibold text-xs mb-1.5 text-foreground">Swap branch with:</p>
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {otherOfficers.map((other) => (
+                      <button
+                        key={other.id}
+                        type="button"
+                        onClick={() => {
+                          onSwapBranches(other.id)
+                          setSwapOpen(false)
+                        }}
+                        className="w-full text-left rounded px-2 py-1 hover:bg-accent text-xs truncate"
+                      >
+                        {other.name}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ) : null}
+
+            {/* Edit dates toggle */}
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
-              onClick={onFollowWindow}
+              className="h-8 px-2 text-[11px] text-muted-foreground hover:text-foreground shrink-0"
+              onClick={() => setEditingDates((current) => !current)}
             >
-              Reset to window
+              {editingDates ? 'Close' : 'Dates'}
             </Button>
-          ) : null}
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
-            onClick={() => setEditingDates((current) => !current)}
-          >
-            {editingDates ? 'Hide dates' : 'Edit dates'}
-          </Button>
+          </div>
         </div>
       </div>
 
-      {/* Inline custom dates editor */}
+      {/* Inline custom dates editor when toggled */}
       {editingDates ? (
-        <div className="rounded-md border bg-muted/20 p-2.5 text-xs space-y-2">
-          <p className="font-medium text-[11px]">Set custom visit dates:</p>
+        <div className="rounded-md border bg-muted/20 p-2.5 text-xs space-y-2 mt-1">
+          <div className="flex items-center justify-between">
+            <p className="font-medium text-[11px] text-foreground">
+              {assignment.isCustomRange ? 'Custom visit dates:' : 'Currently follows window dates:'}
+            </p>
+            {assignment.isCustomRange ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+                onClick={onFollowWindow}
+              >
+                Reset to window
+              </Button>
+            ) : null}
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label className="text-[10px] text-muted-foreground">Start date</Label>
