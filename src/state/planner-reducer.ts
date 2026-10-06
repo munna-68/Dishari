@@ -8,8 +8,9 @@ import {
   setWindow as setWindowRange,
   shiftWindow,
 } from '@/lib/schedule-ops'
-import { applySampleMonth, createCarriedSchedule, SAMPLE_MONTH_KEY } from '@/lib/seed'
+import { applyDefaultMonth, applySampleMonth, createCarriedSchedule, SAMPLE_MONTH_KEY } from '@/lib/seed'
 import {
+  DEFAULT_ACTIVITIES,
   createPermanentOfficers,
   createTemporaryOfficer,
   dismissRecent,

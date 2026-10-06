@@ -2,13 +2,17 @@ import {
   DEFAULT_ACTIVITIES,
   DEFAULT_PERMANENT_ROSTER,
   emptyMonthSchedule,
+  rememberBranchName,
   rememberTemporaryName,
+  slug,
   type AppSettings,
   type Assignment,
   type MonthSchedule,
   type Officer,
   type WindowKey,
 } from './schema'
+import type { DateRange } from './date-format'
+import { toMonthKey } from './date'
 
 export const SAMPLE_MONTH_KEY = '2026-10'
 
@@ -115,6 +119,82 @@ export function applySampleMonth(
     nextSettings = rememberTemporaryName(nextSettings, name)
   }
   return { settings: nextSettings, schedule: createSampleSchedule(), monthKey: SAMPLE_MONTH_KEY }
+}
+
+export function createDefaultSchedule(
+  year: number,
+  month: number,
+  customWindows?: Record<WindowKey, DateRange>,
+  roster: string[] = [...DEFAULT_PERMANENT_ROSTER],
+): MonthSchedule {
+  if (year === 2026 && month === 10 && !customWindows) {
+    return createSampleSchedule()
+  }
+
+  const schedule = emptyMonthSchedule(year, month)
+  if (customWindows) {
+    schedule.windows = {
+      one: { start: customWindows.one.start, end: customWindows.one.end },
+      two: { start: customWindows.two.start, end: customWindows.two.end },
+    }
+  }
+  schedule.activities = [...DEFAULT_ACTIVITIES]
+
+  const officers: Officer[] = []
+  const assignments: Record<string, Record<WindowKey, Assignment>> = {}
+
+  roster.forEach((name, index) => {
+    const officer: Officer = {
+      id: `p-${index}-${slug(name)}`,
+      name,
+      kind: 'permanent',
+      crossedOut: false,
+    }
+    const row = SAMPLE_ROWS.find((entry) => entry.name === name)
+    officers.push(officer)
+    const customOne = year === 2026 && month === 10 && row?.customOne ? [row.customOne] : []
+    assignments[officer.id] = assignmentsFor(
+      assignmentFor(row?.branchOne ?? '', customOne),
+      assignmentFor(row?.branchTwo ?? ''),
+    )
+  })
+
+  SAMPLE_TEMPORARIES.forEach((entry, index) => {
+    const officer: Officer = {
+      id: `t-${index}-${slug(entry.name)}`,
+      name: entry.name,
+      kind: 'temporary',
+      crossedOut: false,
+    }
+    officers.push(officer)
+    assignments[officer.id] = assignmentsFor(assignmentFor(entry.branchOne), assignmentFor(entry.branchTwo))
+  })
+
+  schedule.officers = officers
+  schedule.assignments = assignments
+  return schedule
+}
+
+export function applyDefaultMonth(
+  settings: AppSettings,
+  year: number,
+  month: number,
+  customWindows?: Record<WindowKey, DateRange>,
+): { settings: AppSettings; schedule: MonthSchedule; monthKey: string } {
+  let nextSettings = settings
+  for (const name of SAMPLE_TEMPORARY_NAMES) {
+    nextSettings = rememberTemporaryName(nextSettings, name)
+  }
+  for (const row of SAMPLE_ROWS) {
+    if (row.branchOne) nextSettings = rememberBranchName(nextSettings, row.branchOne)
+    if (row.branchTwo) nextSettings = rememberBranchName(nextSettings, row.branchTwo)
+  }
+  for (const entry of SAMPLE_TEMPORARIES) {
+    if (entry.branchOne) nextSettings = rememberBranchName(nextSettings, entry.branchOne)
+    if (entry.branchTwo) nextSettings = rememberBranchName(nextSettings, entry.branchTwo)
+  }
+  const schedule = createDefaultSchedule(year, month, customWindows, settings.defaultPermanentRoster)
+  return { settings: nextSettings, schedule, monthKey: toMonthKey(year, month) }
 }
 
 /** Officers a new month inherits: permanent roster plus last month's temporaries. */
