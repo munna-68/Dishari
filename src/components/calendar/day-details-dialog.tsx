@@ -7,7 +7,6 @@ import {
   Check,
   MapPin,
   RotateCcw,
-  User,
   Users,
 } from 'lucide-react'
 
@@ -37,7 +36,6 @@ import {
   dateInputValue,
   fromIso,
   isWithin,
-  longDateLabel,
 } from '@/lib/date'
 import type { DateRange } from '@/lib/date-format'
 import { printableOfficers } from '@/lib/document-model'
@@ -45,7 +43,7 @@ import { getAssignmentsForDay, type OfficerDayAssignment } from '@/lib/schedule-
 import type { AppSettings, MonthSchedule, WindowKey } from '@/lib/schema'
 import { cn } from '@/lib/utils'
 import type { HolidayContext } from '@/lib/working-days'
-import { holidayLabel, isToday, isWorkingDay, resolveDayStatus } from '@/lib/working-days'
+import { holidayLabel, isToday, resolveDayStatus } from '@/lib/working-days'
 
 const QUICK_BRANCHES = ['Issue-Based Monitoring', 'Special Visit at']
 
@@ -143,13 +141,15 @@ export function DayDetailsDialog({
   }, [assignments, focusedOfficerId, searchTerm])
 
   function handleAssignUnassignedOfficer(officerId: string) {
+    if (!iso) return
+    const targetIso: string = iso
     // Determine which window makes sense:
     // If inside window two, assign to two; otherwise default to one
     const windowKey: WindowKey = inWindowTwo && !inWindowOne ? 'two' : 'one'
     // If date is outside the window, set customRanges covering this date
     const windowRange = schedule.windows[windowKey]
-    if (!isWithin(iso, windowRange.start, windowRange.end)) {
-      onSetCustomRanges(officerId, windowKey, [{ start: iso, end: iso }])
+    if (!isWithin(targetIso, windowRange.start, windowRange.end)) {
+      onSetCustomRanges(officerId, windowKey, [{ start: targetIso, end: targetIso }])
     } else {
       // If within window, following window will include this date
       onSetCustomRanges(officerId, windowKey, [])

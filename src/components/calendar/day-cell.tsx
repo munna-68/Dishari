@@ -249,19 +249,22 @@ function cellClasses(
     'relative flex h-full min-h-18 sm:min-h-20 flex-col gap-0.5 overflow-hidden rounded-md border p-1 text-left transition-colors cursor-pointer select-none',
     'hover:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
     isToday && 'ring-2 ring-foreground ring-offset-1 ring-offset-background',
-    // Background precedence: a holiday always wins over the visit-window tint.
+    // Background precedence: a holiday or override wins over visit-window tint,
+    // and weekly off days stay grayed out/inactive even within a window span.
     status.kind === 'holiday'
       ? 'border-holiday bg-holiday-soft'
       : status.kind === 'override'
         ? 'border-window-one/60 bg-window-one-soft'
-        : inWindowOne
-          ? 'bg-window-one-soft/50'
-          : inWindowTwo
-            ? 'bg-window-two-soft/50'
-            : inMonth
-              ? 'bg-card'
-              : 'bg-muted/40',
-    status.kind === 'weekly-off' && 'offday-hatch text-muted-foreground',
+        : status.kind === 'weekly-off'
+          ? 'bg-weekend text-muted-foreground'
+          : inWindowOne
+            ? 'bg-window-one-soft/50'
+            : inWindowTwo
+              ? 'bg-window-two-soft/50'
+              : inMonth
+                ? 'bg-card'
+                : 'bg-muted/40',
+    status.kind === 'weekly-off' && 'offday-hatch',
     !inMonth && 'opacity-60',
     isOfficerRange && 'outline-primary/40 outline-2 outline-offset-[-2px]',
   )
