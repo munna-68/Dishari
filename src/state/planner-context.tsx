@@ -59,6 +59,7 @@ export interface PlannerApi {
   run: (action: PlannerAction, options?: RunOptions) => void
   updateSettings: (patch: Partial<AppSettings>) => void
   loadSample: () => void
+  loadDefaultData: (monthKey?: string) => void
   saveStatus: 'idle' | 'pending' | 'saving' | 'saved'
   storageWarning: string | null
   migrationWarnings: string[]
@@ -184,6 +185,13 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         dispatch(install(result.state))
         setMonthKeyState(SAMPLE_MONTH_KEY)
         toast.success('Loaded the October 2026 sample.')
+      },
+      loadDefaultData: (targetMonthKey = monthKey) => {
+        const result = reduce(stateRef.current, { type: 'month/loadDefault', monthKey: targetMonthKey })
+        stateRef.current = result.state
+        dispatch(install(result.state))
+        setMonthKeyState(targetMonthKey)
+        toast.success(`Loaded default data for ${monthLabel(targetMonthKey)}.`)
       },
       saveStatus: persistence.status,
       storageWarning: persistence.storageWarning,

@@ -134,6 +134,7 @@ export function PlannerWorkspace() {
         onRestoreBackup={restoreBackup}
         onResetAll={planner.resetEverything}
         onLoadSample={planner.loadSample}
+        onLoadDefault={() => run({ type: 'month/loadDefault', monthKey })}
         onToggleTheme={() => {
           const next = theme === 'dark' ? 'light' : 'dark'
           setTheme(next)
@@ -166,8 +167,9 @@ export function PlannerWorkspace() {
           <EmptyMonthState
             monthKey={monthKey}
             previousMonthHasList={previousSchedule !== undefined}
-            onStartFromLastMonth={() => run({ type: 'month/carryOver', monthKey })}
+            onLoadDefaultData={() => run({ type: 'month/loadDefault', monthKey })}
             onStartBlank={() => run({ type: 'month/startBlank', monthKey })}
+            onStartFromLastMonth={() => run({ type: 'month/carryOver', monthKey })}
             onLoadSample={planner.loadSample}
           />
         ) : (

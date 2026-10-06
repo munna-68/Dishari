@@ -10,6 +10,7 @@ import {
   Moon,
   RotateCcw,
   Settings,
+  Sparkles,
   Sun,
   Upload,
 } from 'lucide-react'
@@ -42,7 +43,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
-import { MONTH_NAMES, parseMonthKey } from '@/lib/date'
+import { MONTH_NAMES, monthLabel, parseMonthKey } from '@/lib/date'
 import { cn } from '@/lib/utils'
 
 export interface TopBarProps {
@@ -62,6 +63,7 @@ export interface TopBarProps {
   onRestoreBackup: (file: File) => void
   onResetAll: () => void
   onLoadSample: () => void
+  onLoadDefault?: () => void
   onToggleTheme: () => void
 }
 
@@ -82,6 +84,7 @@ export function TopBar({
   onRestoreBackup,
   onResetAll,
   onLoadSample,
+  onLoadDefault,
   onToggleTheme,
 }: TopBarProps) {
   const parts = parseMonthKey(monthKey)
@@ -158,6 +161,12 @@ export function TopBar({
                 {theme === 'dark' ? <Sun /> : <Moon />}
                 Switch to {theme === 'dark' ? 'light' : 'dark'} theme
               </DropdownMenuItem>
+              {onLoadDefault ? (
+                <DropdownMenuItem onSelect={onLoadDefault}>
+                  <Sparkles />
+                  Load default data ({monthLabel(monthKey)})
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem onSelect={onLoadSample}>
                 <CalendarCheck />
                 Load sample: October 2026

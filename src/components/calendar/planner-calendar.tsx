@@ -235,6 +235,7 @@ function BandSegmentView({
   const colour = segment.windowKey === 'one' ? 'bg-window-one' : 'bg-window-two'
   const label = segment.windowKey === 'one' ? 'Window 1' : 'Window 2'
   const text = `${label}: ${range.start} to ${range.end}`
+  const columnCount = segment.endColumn - segment.startColumn + 1
 
   return (
     <div
@@ -249,6 +250,7 @@ function BandSegmentView({
         text={text}
         colour={colour}
         dragging={draggingId === `${segment.windowKey}-body`}
+        columnCount={columnCount}
       />
 
       {segment.isFirstSegment ? (
@@ -278,11 +280,13 @@ function WindowBody({
   text,
   colour,
   dragging,
+  columnCount,
 }: {
   id: string
   text: string
   colour: string
   dragging: boolean
+  columnCount: number
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id })
   return (
@@ -296,13 +300,26 @@ function WindowBody({
           tabIndex={-1}
           aria-label={`${text}. Drag to shift this window.`}
           className={cn(
-            'pointer-events-auto absolute inset-x-0 top-0 z-10 h-2 cursor-ew-resize touch-none rounded-full',
+            'pointer-events-auto absolute inset-x-0 top-0 z-10 grid h-2 cursor-ew-resize touch-none gap-1',
             'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-            colour,
-            dragging && 'ring-2 ring-foreground',
+            dragging && 'opacity-80',
           )}
-          style={{ transform: CSS.Translate.toString(transform) }}
-        />
+          style={{
+            gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+            transform: CSS.Translate.toString(transform),
+          }}
+        >
+          {Array.from({ length: columnCount }, (_, index) => (
+            <span
+              key={index}
+              className={cn(
+                'h-full rounded-full',
+                colour,
+                dragging && 'ring-2 ring-foreground',
+              )}
+            />
+          ))}
+        </div>
       </TooltipTrigger>
       <TooltipContent>
         <p className="font-medium">{text}</p>
