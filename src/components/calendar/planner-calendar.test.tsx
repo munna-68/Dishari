@@ -9,6 +9,9 @@ describe('PlannerCalendar band segmentation', () => {
   const dummyContext = emptyHolidayContext([5, 6])
 
   const dummySchedule: MonthSchedule = {
+    schemaVersion: 1,
+    year: 2026,
+    month: 10,
     windows: {
       one: { start: '2026-10-01', end: '2026-10-14' },
       two: { start: '2026-10-15', end: '2026-10-27' },
@@ -16,7 +19,6 @@ describe('PlannerCalendar band segmentation', () => {
     activities: [],
     officers: [],
     assignments: {},
-    crossOuts: [],
   }
 
   it('renders window bands with segmented day columns and gaps', () => {
