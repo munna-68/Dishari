@@ -12,7 +12,7 @@ import {
 import { toast } from 'sonner'
 
 import { usePlannerPersistence } from '@/hooks/use-planner-persistence'
-import { parseMonthKey, todayIso, toMonthKey } from '@/lib/date'
+import { monthLabel, parseMonthKey, todayIso, toMonthKey } from '@/lib/date'
 import { buildDocumentModel } from '@/lib/document-model'
 import { downloadBlob } from '@/lib/file-download'
 import { SAMPLE_MONTH_KEY } from '@/lib/seed'

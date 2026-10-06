@@ -46,10 +46,6 @@ export function DayCell({
       {status.kind === 'weekly-off' ? <span className="sr-only">weekly off day</span> : null}
       {status.kind === 'override' ? <span className="sr-only">working-day override</span> : null}
 
-      <span className="pointer-events-none absolute inset-x-0 top-0 h-1 rounded-t-[5px]">
-        {inWindowOne ? <span className="block h-full bg-window-one" /> : null}
-        {inWindowTwo ? <span className="block h-full bg-window-two" /> : null}
-      </span>
 
       {status.kind === 'holiday' ? (
         <span className="line-clamp-2 text-[10px] leading-tight font-medium text-holiday">
