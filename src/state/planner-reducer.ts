@@ -11,6 +11,7 @@ import {
 import { applyDefaultMonth, applySampleMonth, createCarriedSchedule, SAMPLE_MONTH_KEY } from '@/lib/seed'
 import {
   DEFAULT_ACTIVITIES,
+  createPermanentOfficer,
   createPermanentOfficers,
   createTemporaryOfficer,
   dismissRecent,
@@ -61,6 +62,7 @@ export type PlannerAction =
   | { type: 'month/setNote'; monthKey: string; officerId: string; windowKey: WindowKey; note: string }
   | { type: 'month/followWindow'; monthKey: string; officerId: string; windowKey: WindowKey }
   | { type: 'month/swapBranches'; monthKey: string; windowKey: WindowKey; fromId: string; toId: string }
+  | { type: 'month/addPermanent'; monthKey: string; name: string }
   | { type: 'month/addTemporary'; monthKey: string; name: string }
   | { type: 'month/removeOfficer'; monthKey: string; officerId: string }
   | { type: 'month/renameOfficer'; monthKey: string; officerId: string; name: string }
@@ -405,13 +407,102 @@ export function reduce(state: PlannerState, action: PlannerAction): ActionResult
         message: 'Branch entries swapped.',
       }
 
+    case 'month/addPermanent': {
+      const name = action.name.trim()
+      if (name === '') return { state, message: 'Type a name before adding an officer.' }
+      const withMonthState = ensureMonthState(state, action.monthKey)
+      const schedule = withMonthState.months[action.monthKey] as MonthSchedule
+      const existing = schedule.officers.find((officer) => officer.name.trim().toLowerCase() === name.toLowerCase())
+      if (existing) {
+        if (existing.kind === 'temporary') {
+          return {
+            state: withMonth(
+              {
+                ...withMonthState,
+                settings: {
+                  ...withMonthState.settings,
+                  defaultPermanentRoster: withMonthState.settings.defaultPermanentRoster.some(
+                    (r) => r.trim().toLowerCase() === name.toLowerCase(),
+                  )
+                    ? withMonthState.settings.defaultPermanentRoster
+                    : [...withMonthState.settings.defaultPermanentRoster, name],
+                },
+              },
+              action.monthKey,
+              (current) => ({
+                ...current,
+                officers: current.officers.map((entry) =>
+                  entry.id === existing.id ? { ...entry, kind: 'permanent', crossedOut: false } : entry,
+                ),
+              }),
+            ),
+            message: `${existing.name} converted to a permanent officer.`,
+          }
+        }
+        if (existing.crossedOut) {
+          return {
+            state: withMonth(withMonthState, action.monthKey, (current) => ({
+              ...current,
+              officers: current.officers.map((entry) =>
+                entry.id === existing.id ? { ...entry, crossedOut: false } : entry,
+              ),
+            })),
+            message: `${existing.name} restored to the table.`,
+          }
+        }
+        return { state, message: `${name} is already in this month's list.` }
+      }
+
+      const officer = createPermanentOfficer(name)
+      const roster = withMonthState.settings.defaultPermanentRoster.some(
+        (r) => r.trim().toLowerCase() === name.toLowerCase(),
+      )
+        ? withMonthState.settings.defaultPermanentRoster
+        : [...withMonthState.settings.defaultPermanentRoster, name]
+
+      const permanent = schedule.officers.filter((o) => o.kind === 'permanent')
+      const temporary = schedule.officers.filter((o) => o.kind === 'temporary')
+
+      return {
+        state: withMonth(
+          {
+            ...withMonthState,
+            settings: {
+              ...withMonthState.settings,
+              defaultPermanentRoster: roster,
+            },
+          },
+          action.monthKey,
+          (current) => ({
+            ...current,
+            officers: [...permanent, officer, ...temporary],
+            assignments: { ...current.assignments, [officer.id]: { one: emptyAssignment(), two: emptyAssignment() } },
+          }),
+        ),
+        message: `${name} added as a permanent officer.`,
+      }
+    }
+
     case 'month/addTemporary': {
       const name = action.name.trim()
       if (name === '') return { state, message: 'Type a name before adding an officer.' }
       const withMonthState = ensureMonthState(state, action.monthKey)
       const schedule = withMonthState.months[action.monthKey] as MonthSchedule
-      const clash = schedule.officers.some((officer) => officer.name.trim().toLowerCase() === name.toLowerCase())
-      if (clash) return { state, message: `${name} is already in this month's list.` }
+      const existing = schedule.officers.find((officer) => officer.name.trim().toLowerCase() === name.toLowerCase())
+      if (existing) {
+        if (existing.crossedOut) {
+          return {
+            state: withMonth(withMonthState, action.monthKey, (current) => ({
+              ...current,
+              officers: current.officers.map((entry) =>
+                entry.id === existing.id ? { ...entry, crossedOut: false } : entry,
+              ),
+            })),
+            message: `${existing.name} restored to the table.`,
+          }
+        }
+        return { state, message: `${name} is already in this month's list.` }
+      }
 
       const officer = createTemporaryOfficer(name)
       return {

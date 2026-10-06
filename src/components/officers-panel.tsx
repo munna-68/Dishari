@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   DndContext,
   KeyboardSensor,
@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, PanelLeftClose, Trash2, UserRoundPlus } from 'lucide-react'
+import { GripVertical, PanelLeftClose, Trash2, Undo2, UserRoundPlus } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -35,9 +35,12 @@ export const MAX_VISIBLE_RECENT_CHIPS = 8
 
 export interface OfficersPanelProps {
   officers: Officer[]
+  rosterNames?: string[]
   recentNames: string[]
   selectedOfficerId: string | null
+  defaultMode?: 'permanent' | 'temporary'
   onSelect: (officerId: string | null) => void
+  onAddPermanent?: (name: string) => void
   onAddTemporary: (name: string) => void
   onDismissRecent: (name: string) => void
   onToggleCrossOut: (officerId: string) => void
@@ -51,9 +54,12 @@ export interface OfficersPanelProps {
 
 export function OfficersPanel({
   officers,
+  rosterNames = [],
   recentNames,
   selectedOfficerId,
+  defaultMode = 'permanent',
   onSelect,
+  onAddPermanent,
   onAddTemporary,
   onDismissRecent,
   onToggleCrossOut,
@@ -64,6 +70,9 @@ export function OfficersPanel({
   className,
   onCollapse,
 }: OfficersPanelProps) {
+  const [mode, setMode] = useState<'permanent' | 'temporary'>(defaultMode)
+  const inputRef = useRef<HTMLInputElement>(null)
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
@@ -74,11 +83,31 @@ export function OfficersPanel({
   const temporary = officers.filter((officer) => officer.kind === 'temporary')
   const visibleRecent = recentNames.slice(0, MAX_VISIBLE_RECENT_CHIPS)
 
+  // Identify permanent roster officers that are either not in this month or crossed out (left out of table)
+  const rosterStatus = rosterNames.map((name) => {
+    const existing = officers.find((o) => o.name.trim().toLowerCase() === name.trim().toLowerCase())
+    return {
+      name,
+      existing,
+      isInMonth: existing !== undefined,
+      isCrossedOut: existing?.crossedOut === true,
+    }
+  })
+
+  const reenterableRosterOfficers = rosterStatus.filter(
+    (item) => !item.isInMonth || item.isCrossedOut,
+  )
+
   function handleDragEnd(event: DragEndEvent) {
     const activeId = String(event.active.id)
     const overId = event.over ? String(event.over.id) : null
     if (!overId) return
     onReorder(activeId, overId)
+  }
+
+  function handleAddPermanent(name: string) {
+    if (onAddPermanent) onAddPermanent(name)
+    else onAddTemporary(name)
   }
 
   return (
@@ -109,13 +138,19 @@ export function OfficersPanel({
       </CardHeader>
 
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3 px-4 pb-4">
-        <AddTemporaryOfficer
+        <AddOfficer
+          mode={mode}
+          onModeChange={setMode}
+          officers={officers}
+          rosterNames={rosterNames}
           recentNames={recentNames}
-          existingNames={officers.map((officer) => officer.name)}
-          onAdd={onAddTemporary}
+          inputRef={inputRef}
+          onAddPermanent={handleAddPermanent}
+          onAddTemporary={onAddTemporary}
+          onToggleCrossOut={onToggleCrossOut}
         />
 
-        {visibleRecent.length > 0 ? (
+        {mode === 'temporary' && visibleRecent.length > 0 ? (
           <div className="space-y-1.5">
             <p className="text-xs text-muted-foreground">Recent temporary names</p>
             <div className="flex flex-wrap gap-1.5">
@@ -125,6 +160,28 @@ export function OfficersPanel({
                   name={name}
                   onAdd={onAddTemporary}
                   onDismiss={() => onDismissRecent(name)}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {mode === 'permanent' && reenterableRosterOfficers.length > 0 ? (
+          <div className="space-y-1.5">
+            <p className="text-xs text-muted-foreground">Roster officers to re-enter</p>
+            <div className="flex flex-wrap gap-1.5">
+              {reenterableRosterOfficers.slice(0, MAX_VISIBLE_RECENT_CHIPS).map((item) => (
+                <RosterChip
+                  key={item.name}
+                  name={item.name}
+                  isCrossedOut={item.isCrossedOut}
+                  onAction={() => {
+                    if (item.existing && item.isCrossedOut) {
+                      onToggleCrossOut(item.existing.id)
+                    } else {
+                      handleAddPermanent(item.name)
+                    }
+                  }}
                 />
               ))}
             </div>
@@ -148,18 +205,25 @@ export function OfficersPanel({
                 onSelect={onSelect}
                 onToggleCrossOut={onToggleCrossOut}
                 onRename={onRename}
+                onRemove={onRemove}
+                onAddClick={() => {
+                  setMode('permanent')
+                  inputRef.current?.focus()
+                }}
               />
-              {temporary.length > 0 ? (
-                <OfficerGroup
-                  title="Temporary"
-                  officers={temporary}
-                  selectedOfficerId={selectedOfficerId}
-                  onSelect={onSelect}
-                  onToggleCrossOut={onToggleCrossOut}
-                  onRename={onRename}
-                  onRemove={onRemove}
-                />
-              ) : null}
+              <OfficerGroup
+                title="Temporary"
+                officers={temporary}
+                selectedOfficerId={selectedOfficerId}
+                onSelect={onSelect}
+                onToggleCrossOut={onToggleCrossOut}
+                onRename={onRename}
+                onRemove={onRemove}
+                onAddClick={() => {
+                  setMode('temporary')
+                  inputRef.current?.focus()
+                }}
+              />
             </div>
           </ScrollArea>
         </DndContext>
@@ -190,6 +254,7 @@ function OfficerGroup({
   onToggleCrossOut,
   onRename,
   onRemove,
+  onAddClick,
 }: {
   title: string
   officers: Officer[]
@@ -198,11 +263,24 @@ function OfficerGroup({
   onToggleCrossOut: (officerId: string) => void
   onRename: (officerId: string, name: string) => void
   onRemove?: (officerId: string) => void
+  onAddClick?: () => void
 }) {
   if (officers.length === 0) {
     return (
       <div className="space-y-1.5">
-        <p className="text-xs font-semibold tracking-wide uppercase text-muted-foreground">{title}</p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold tracking-wide uppercase text-muted-foreground">{title}</p>
+          {onAddClick ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onAddClick}
+              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              + Add
+            </Button>
+          ) : null}
+        </div>
         <p className="text-xs text-muted-foreground">None yet.</p>
       </div>
     )
@@ -210,9 +288,21 @@ function OfficerGroup({
 
   return (
     <div className="space-y-1.5">
-      <p className="text-xs font-semibold tracking-wide uppercase text-muted-foreground">
-        {title} · {officers.length}
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold tracking-wide uppercase text-muted-foreground">
+          {title} · {officers.length}
+        </p>
+        {onAddClick ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onAddClick}
+            className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+          >
+            + Add
+          </Button>
+        ) : null}
+      </div>
       <SortableContext items={officers.map((officer) => officer.id)} strategy={verticalListSortingStrategy}>
         <ul className="space-y-1.5">
           {officers.map((officer) => (
@@ -323,12 +413,19 @@ function OfficerCard({
             {officer.name}
           </button>
         )}
-        <Badge
-          variant={officer.kind === 'permanent' ? 'secondary' : 'outline'}
-          className="mt-0.5 px-1 py-0 text-[10px]"
-        >
-          {officer.kind === 'permanent' ? 'Permanent' : 'Temporary'}
-        </Badge>
+        <div className="mt-0.5 flex flex-wrap items-center gap-1">
+          <Badge
+            variant={officer.kind === 'permanent' ? 'secondary' : 'outline'}
+            className="px-1 py-0 text-[10px]"
+          >
+            {officer.kind === 'permanent' ? 'Permanent' : 'Temporary'}
+          </Badge>
+          {officer.crossedOut ? (
+            <Badge variant="outline" className="border-amber-500/50 px-1 py-0 text-[10px] text-amber-600 dark:text-amber-400">
+              Left out of table
+            </Badge>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex shrink-0 items-center gap-0.5">
@@ -339,25 +436,35 @@ function OfficerCard({
               size="icon-sm"
               onClick={onToggleCrossOut}
               aria-label={officer.crossedOut ? `Restore ${officer.name}` : `Cross out ${officer.name}`}
+              className={officer.crossedOut ? 'text-primary hover:text-primary hover:bg-primary/10' : ''}
             >
-              {officer.crossedOut ? '↩' : '✕'}
+              {officer.crossedOut ? (
+                <Undo2 className="size-4" aria-hidden />
+              ) : (
+                <span className="text-sm leading-none" aria-hidden>✕</span>
+              )}
             </Button>
           </TooltipTrigger>
           <TooltipContent>
             {officer.crossedOut
-              ? 'Put this officer back in the table and exports'
-              : 'Leave this officer out of the table and exports for this month'}
+              ? `Put ${officer.name} back in the table and exports`
+              : `Leave ${officer.name} out of the table and exports for this month`}
           </TooltipContent>
         </Tooltip>
 
         {onRemove ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-sm" onClick={onRemove} aria-label={`Remove ${officer.name}`}>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={onRemove}
+                aria-label={`Remove ${officer.name}`}
+              >
                 <Trash2 className="size-4" aria-hidden />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Remove this temporary officer from {officer.name}&apos;s month</TooltipContent>
+            <TooltipContent>Remove {officer.name} from this month</TooltipContent>
           </Tooltip>
         ) : null}
       </div>
@@ -365,36 +472,121 @@ function OfficerCard({
   )
 }
 
-function AddTemporaryOfficer({
+function AddOfficer({
+  mode,
+  onModeChange,
+  officers,
+  rosterNames,
   recentNames,
-  existingNames,
-  onAdd,
+  inputRef,
+  onAddPermanent,
+  onAddTemporary,
+  onToggleCrossOut,
 }: {
+  mode: 'permanent' | 'temporary'
+  onModeChange: (mode: 'permanent' | 'temporary') => void
+  officers: Officer[]
+  rosterNames: string[]
   recentNames: string[]
-  existingNames: string[]
-  onAdd: (name: string) => void
+  inputRef: React.RefObject<HTMLInputElement | null>
+  onAddPermanent: (name: string) => void
+  onAddTemporary: (name: string) => void
+  onToggleCrossOut: (officerId: string) => void
 }) {
   const [value, setValue] = useState('')
-  const [open, setOpen] = useState(false)
+  const [recentOpen, setRecentOpen] = useState(false)
+  const [rosterOpen, setRosterOpen] = useState(false)
   const trimmed = value.trim()
 
-  const existingLower = new Set(existingNames.map((name) => name.trim().toLowerCase()))
-  const suggestions = recentNames.filter((name) => !existingLower.has(name.trim().toLowerCase()))
+  const existingOfficersMap = new Map(
+    officers.map((officer) => [officer.name.trim().toLowerCase(), officer]),
+  )
+  const matchedOfficer = trimmed !== '' ? existingOfficersMap.get(trimmed.toLowerCase()) : undefined
+
+  // Suggestions for Temporary mode: recent names not already in this month
+  const recentSuggestions = recentNames.filter(
+    (name) => !existingOfficersMap.has(name.trim().toLowerCase()),
+  )
+
+  // Suggestions for Permanent mode: roster names from Settings
+  const rosterItems = rosterNames.map((name) => {
+    const existing = existingOfficersMap.get(name.trim().toLowerCase())
+    return {
+      name,
+      existing,
+      isCrossedOut: existing?.crossedOut === true,
+      isInTable: existing !== undefined && !existing.crossedOut,
+    }
+  })
 
   function submit() {
     if (trimmed === '') return
-    onAdd(trimmed)
+    if (matchedOfficer) {
+      if (matchedOfficer.crossedOut) {
+        onToggleCrossOut(matchedOfficer.id)
+        setValue('')
+        return
+      }
+      return
+    }
+
+    if (mode === 'permanent') {
+      onAddPermanent(trimmed)
+    } else {
+      onAddTemporary(trimmed)
+    }
     setValue('')
-    setOpen(false)
+    setRecentOpen(false)
+    setRosterOpen(false)
   }
 
   return (
     <div className="space-y-2">
-      <label htmlFor="add-temporary" className="text-xs font-medium text-muted-foreground">
-        Add a temporary officer
-      </label>
+      <div className="flex items-center justify-between gap-1">
+        <label htmlFor="add-officer-input" className="text-xs font-medium text-muted-foreground">
+          Add {mode === 'permanent' ? 'a permanent' : 'a temporary'} officer
+        </label>
+        <div className="inline-flex rounded-md bg-muted p-0.5 text-xs" role="tablist" aria-label="Officer type">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'permanent'}
+            onClick={() => {
+              onModeChange('permanent')
+              inputRef.current?.focus()
+            }}
+            className={cn(
+              'rounded px-2 py-0.5 font-medium transition-colors cursor-pointer',
+              mode === 'permanent'
+                ? 'bg-background text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            Permanent
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'temporary'}
+            onClick={() => {
+              onModeChange('temporary')
+              inputRef.current?.focus()
+            }}
+            className={cn(
+              'rounded px-2 py-0.5 font-medium transition-colors cursor-pointer',
+              mode === 'temporary'
+                ? 'bg-background text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            Temporary
+          </button>
+        </div>
+      </div>
+
       <Input
-        id="add-temporary"
+        id="add-officer-input"
+        ref={inputRef}
         value={value}
         placeholder="Name, then press Enter"
         onChange={(event) => setValue(event.target.value)}
@@ -403,44 +595,130 @@ function AddTemporaryOfficer({
         }}
         className="h-9 w-full"
       />
+
       <div className="flex items-center gap-2">
-        <Button size="sm" onClick={submit} disabled={trimmed === ''} className="flex-1">
+        <Button
+          size="sm"
+          onClick={submit}
+          disabled={trimmed === '' || (matchedOfficer !== undefined && !matchedOfficer.crossedOut)}
+          className="flex-1"
+        >
           <UserRoundPlus className="size-4" />
           Add
         </Button>
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" aria-label="Browse recent names">
-              Recent
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-64 p-0" align="end">
-            <Command>
-              <CommandInput placeholder="Search recent names" value={value} onValueChange={setValue} />
-              <CommandList>
-                <CommandEmpty>No recent names yet.</CommandEmpty>
-                <CommandGroup heading="Recent">
-                  {suggestions.map((name) => (
-                    <CommandItem
-                      key={name}
-                      value={name}
-                      onSelect={() => {
-                        onAdd(name)
-                        setValue('')
-                        setOpen(false)
-                      }}
-                    >
-                      {name}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
+
+        {mode === 'permanent' ? (
+          <Popover open={rosterOpen} onOpenChange={setRosterOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" aria-label="Browse roster names">
+                Roster
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0" align="end">
+              <Command>
+                <CommandInput placeholder="Search roster names" value={value} onValueChange={setValue} />
+                <CommandList>
+                  {rosterItems.length === 0 ? (
+                    <CommandEmpty>No roster names in Settings.</CommandEmpty>
+                  ) : (
+                    <CommandGroup heading="Permanent Roster">
+                      {rosterItems.map((item) => (
+                        <CommandItem
+                          key={item.name}
+                          value={item.name}
+                          onSelect={() => {
+                            if (item.existing) {
+                              if (item.isCrossedOut) {
+                                onToggleCrossOut(item.existing.id)
+                              }
+                            } else {
+                              onAddPermanent(item.name)
+                            }
+                            setValue('')
+                            setRosterOpen(false)
+                          }}
+                        >
+                          <span className="flex-1 truncate">{item.name}</span>
+                          {item.isCrossedOut ? (
+                            <Badge variant="outline" className="border-amber-500/50 text-[10px] text-amber-600 dark:text-amber-400">
+                              Restore
+                            </Badge>
+                          ) : item.isInTable ? (
+                            <Badge variant="secondary" className="text-[10px]">
+                              In table
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px]">
+                              + Add
+                            </Badge>
+                          )}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        ) : (
+          <Popover open={recentOpen} onOpenChange={setRecentOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" aria-label="Browse recent names">
+                Recent
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0" align="end">
+              <Command>
+                <CommandInput placeholder="Search recent names" value={value} onValueChange={setValue} />
+                <CommandList>
+                  <CommandEmpty>No recent names yet.</CommandEmpty>
+                  <CommandGroup heading="Recent">
+                    {recentSuggestions.map((name) => (
+                      <CommandItem
+                        key={name}
+                        value={name}
+                        onSelect={() => {
+                          onAddTemporary(name)
+                          setValue('')
+                          setRecentOpen(false)
+                        }}
+                      >
+                        {name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        )}
       </div>
-      {trimmed !== '' && existingLower.has(trimmed.toLowerCase()) ? (
-        <p className="text-xs text-destructive">{trimmed} is already in this month&apos;s list.</p>
+
+      {matchedOfficer ? (
+        matchedOfficer.crossedOut ? (
+          <div className="flex items-center justify-between rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-800 dark:text-amber-200">
+            <span className="truncate pr-1">
+              {matchedOfficer.name} is crossed out for this month.
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-6 shrink-0 px-2 text-xs"
+              onClick={() => {
+                onToggleCrossOut(matchedOfficer.id)
+                setValue('')
+              }}
+            >
+              <Undo2 className="size-3 mr-1" />
+              Restore
+            </Button>
+          </div>
+        ) : (
+          <p className="text-xs text-destructive">
+            {matchedOfficer.name} is already in this month&apos;s list.
+          </p>
+        )
       ) : null}
     </div>
   )
@@ -473,6 +751,36 @@ function RecentChip({
         ✕
       </button>
     </span>
+  )
+}
+
+function RosterChip({
+  name,
+  isCrossedOut,
+  onAction,
+}: {
+  name: string
+  isCrossedOut: boolean
+  onAction: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onAction}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs transition-colors',
+        isCrossedOut
+          ? 'border-amber-500/40 bg-amber-500/10 text-amber-800 hover:bg-amber-500/20 dark:text-amber-200'
+          : 'bg-secondary hover:bg-secondary/80',
+        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+      )}
+      title={isCrossedOut ? `Restore ${name} to table` : `Add ${name} to this month`}
+    >
+      <span>{name}</span>
+      <span className="text-muted-foreground text-[10px]">
+        {isCrossedOut ? '↩' : '+'}
+      </span>
+    </button>
   )
 }
 

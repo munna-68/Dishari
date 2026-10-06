@@ -179,11 +179,13 @@ export function PlannerWorkspace() {
                 <OfficersPanel
                   className="xl:h-full"
                   officers={schedule.officers}
+                  rosterNames={settings.defaultPermanentRoster}
                   recentNames={settings.recentTemporaryNames}
                   selectedOfficerId={selectedOfficerId}
                   onSelect={(officerId) =>
                     setSelectedOfficerId((current) => (current === officerId ? null : officerId))
                   }
+                  onAddPermanent={(name) => run({ type: 'month/addPermanent', monthKey, name })}
                   onAddTemporary={(name) => run({ type: 'month/addTemporary', monthKey, name })}
                   onDismissRecent={(name) => run({ type: 'settings/dismissRecentName', name })}
                   onToggleCrossOut={(officerId) => run({ type: 'month/toggleCrossOut', monthKey, officerId }, { undo: true })}

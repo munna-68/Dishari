@@ -84,4 +84,32 @@ describe('OfficersPanel - Add temporary officer layout', () => {
     fireEvent.click(addButton)
     expect(onAddTemporary).toHaveBeenCalledWith('New Officer')
   })
+
+  it('triggers onCollapse when collapse button is clicked', () => {
+    const onCollapse = vi.fn()
+    render(
+      <TooltipProvider>
+        <OfficersPanel
+          officers={dummyOfficers}
+          recentNames={[]}
+          selectedOfficerId={null}
+          onSelect={vi.fn()}
+          onAddTemporary={vi.fn()}
+          onDismissRecent={vi.fn()}
+          onToggleCrossOut={vi.fn()}
+          onRename={vi.fn()}
+          onRemove={vi.fn()}
+          onReorder={vi.fn()}
+          onSetRoster={vi.fn()}
+          onCollapse={onCollapse}
+        />
+      </TooltipProvider>,
+    )
+
+    const collapseButton = screen.getByRole('button', { name: /collapse officers panel/i })
+    expect(collapseButton).toBeInTheDocument()
+
+    fireEvent.click(collapseButton)
+    expect(onCollapse).toHaveBeenCalledTimes(1)
+  })
 })

@@ -181,6 +181,7 @@
 @layer base {
   /* Holiday names are often Bengali, so keep a script-aware fallback. */
   html {
+    scrollbar-gutter: stable;
     font-family:
       'Geist Variable',
       'Noto Sans Bengali Variable',

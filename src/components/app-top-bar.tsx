@@ -8,6 +8,8 @@ import {
   Loader2,
   MonitorCog,
   Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   RotateCcw,
   Settings,
   Sparkles,
@@ -43,6 +45,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MONTH_NAMES, monthLabel, parseMonthKey } from '@/lib/date'
 import { cn } from '@/lib/utils'
 
@@ -65,6 +68,8 @@ export interface TopBarProps {
   onLoadSample: () => void
   onLoadDefault?: () => void
   onToggleTheme: () => void
+  isOfficersPanelCollapsed?: boolean
+  onToggleOfficersPanel?: () => void
 }
 
 export function TopBar({
@@ -86,6 +91,8 @@ export function TopBar({
   onLoadSample,
   onLoadDefault,
   onToggleTheme,
+  isOfficersPanelCollapsed,
+  onToggleOfficersPanel,
 }: TopBarProps) {
   const parts = parseMonthKey(monthKey)
   if (!parts) return null
@@ -96,6 +103,31 @@ export function TopBar({
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="flex flex-wrap items-center gap-2 px-4 py-2">
+        {onToggleOfficersPanel ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onToggleOfficersPanel}
+                aria-label={isOfficersPanelCollapsed ? 'Show officers panel' : 'Hide officers panel'}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {isOfficersPanelCollapsed ? (
+                  <PanelLeftOpen className="size-4" />
+                ) : (
+                  <PanelLeftClose className="size-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {isOfficersPanelCollapsed
+                ? 'Show officers panel (Ctrl+[ or Alt+O)'
+                : 'Hide officers panel (Ctrl+[ or Alt+O)'}
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+
         <h1 className="mr-1 hidden text-sm font-semibold lg:block">Monitoring Schedule Planner</h1>
 
         <div className="flex items-center gap-1">
