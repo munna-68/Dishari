@@ -61,7 +61,15 @@ export type PlannerAction =
   | { type: 'month/setCustomRanges'; monthKey: string; officerId: string; windowKey: WindowKey; ranges: DateRange[] }
   | { type: 'month/setNote'; monthKey: string; officerId: string; windowKey: WindowKey; note: string }
   | { type: 'month/followWindow'; monthKey: string; officerId: string; windowKey: WindowKey }
-  | { type: 'month/swapBranches'; monthKey: string; windowKey: WindowKey; fromId: string; toId: string }
+  | {
+      type: 'month/swapBranches'
+      monthKey: string
+      windowKey?: WindowKey
+      fromWindowKey?: WindowKey
+      fromId: string
+      toWindowKey?: WindowKey
+      toId: string
+    }
   | { type: 'month/addPermanent'; monthKey: string; name: string }
   | { type: 'month/addTemporary'; monthKey: string; name: string }
   | { type: 'month/removeOfficer'; monthKey: string; officerId: string }
@@ -395,17 +403,20 @@ export function reduce(state: PlannerState, action: PlannerAction): ActionResult
         message: 'This cell follows the window again.',
       }
 
-    case 'month/swapBranches':
+    case 'month/swapBranches': {
+      const fromWindow = action.fromWindowKey ?? action.windowKey ?? 'one'
+      const toWindow = action.toWindowKey ?? action.windowKey ?? fromWindow
       return {
         state: withMonth(ensureMonthState(state, action.monthKey), action.monthKey, (schedule) => {
-          const from = assignmentFor(schedule, action.fromId, action.windowKey)
-          const to = assignmentFor(schedule, action.toId, action.windowKey)
-          let next = updateAssignment(schedule, action.fromId, action.windowKey, () => ({ ...from, branch: to.branch }))
-          next = updateAssignment(next, action.toId, action.windowKey, () => ({ ...to, branch: from.branch }))
+          const from = assignmentFor(schedule, action.fromId, fromWindow)
+          const to = assignmentFor(schedule, action.toId, toWindow)
+          let next = updateAssignment(schedule, action.fromId, fromWindow, () => ({ ...from, branch: to.branch }))
+          next = updateAssignment(next, action.toId, toWindow, () => ({ ...to, branch: from.branch }))
           return next
         }),
-        message: 'Branch entries swapped.',
+        message: 'Branch assignments updated.',
       }
+    }
 
     case 'month/addPermanent': {
       const name = action.name.trim()

@@ -219,7 +219,7 @@ export function PlannerWorkspace() {
                   rosterNames={settings.defaultPermanentRoster}
                   recentNames={settings.recentTemporaryNames}
                   selectedOfficerId={selectedOfficerId}
-                  defaultMode="permanent"
+                  defaultMode="temporary"
                   onSelect={(officerId) =>
                     setSelectedOfficerId((current) => (current === officerId ? null : officerId))
                   }
@@ -345,8 +345,19 @@ export function PlannerWorkspace() {
                   onSetCustomRanges={(officerId, windowKey, ranges) =>
                     run({ type: 'month/setCustomRanges', monthKey, officerId, windowKey, ranges })
                   }
-                  onSwapBranches={(windowKey, fromId, toId) =>
-                    run({ type: 'month/swapBranches', monthKey, windowKey, fromId, toId })
+                  onSwapBranches={(fromWindow, fromId, toWindow, toId) =>
+                    run(
+                      {
+                        type: 'month/swapBranches',
+                        monthKey,
+                        windowKey: fromWindow,
+                        fromWindowKey: fromWindow,
+                        fromId,
+                        toWindowKey: toWindow,
+                        toId,
+                      },
+                      { undo: true, undoLabel: 'Undo swap' },
+                    )
                   }
                   onRememberBranch={(branch) =>
                     planner.updateSettings({ recentBranchNames: rememberBranchName(settings, branch).recentBranchNames })
