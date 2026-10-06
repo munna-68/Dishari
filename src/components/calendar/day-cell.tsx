@@ -218,7 +218,11 @@ function cellClasses(
       : status.kind === 'override'
         ? 'border-window-one/60 bg-window-one-soft'
         : status.kind === 'weekly-off'
-          ? 'bg-weekend text-muted-foreground'
+          ? inWindowOne
+            ? 'bg-window-one-muted-off text-muted-foreground'
+            : inWindowTwo
+              ? 'bg-window-two-muted-off text-muted-foreground'
+              : 'bg-weekend text-muted-foreground'
           : inWindowOne
             ? 'bg-window-one-soft/50'
             : inWindowTwo

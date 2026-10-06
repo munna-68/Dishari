@@ -222,6 +222,20 @@
   );
 }
 
+/* Muted / desaturated styling for weekly off days inside visit windows */
+.window-band-muted {
+  opacity: 0.35;
+  filter: saturate(0.25);
+}
+
+.bg-window-one-muted-off {
+  background-color: color-mix(in oklch, var(--window-one-soft) 40%, var(--weekend));
+}
+
+.bg-window-two-muted-off {
+  background-color: color-mix(in oklch, var(--window-two-soft) 40%, var(--weekend));
+}
+
 /* Responsive resizable officers side panel column */
 @media (min-width: 1024px) {
   .officers-panel-col {

@@ -250,6 +250,8 @@ export function PlannerCalendar({
                   segment={segment}
                   range={windows[segment.windowKey]}
                   draggingId={dragging}
+                  gridDays={gridDays}
+                  context={context}
                 />
               ))}
             </div>
@@ -332,15 +334,27 @@ function BandSegmentView({
   segment,
   range,
   draggingId,
+  gridDays,
+  context,
 }: {
   segment: BandSegment
   range: DateRange
   draggingId: string | null
+  gridDays: string[]
+  context: HolidayContext
 }) {
   const colour = segment.windowKey === 'one' ? 'bg-window-one' : 'bg-window-two'
   const label = segment.windowKey === 'one' ? 'Window 1' : 'Window 2'
   const text = `${label}: ${range.start} to ${range.end}`
   const columnCount = segment.endColumn - segment.startColumn + 1
+
+  const days = Array.from({ length: columnCount }, (_, index) => {
+    const columnIndex = segment.startColumn + index
+    const iso = gridDays[segment.weekIndex * 7 + columnIndex]
+    const status = iso ? resolveDayStatus(iso, context) : null
+    const isOff = status?.kind === 'weekly-off' || status?.kind === 'holiday'
+    return { iso, isOff }
+  })
 
   return (
     <div
@@ -355,7 +369,7 @@ function BandSegmentView({
         text={text}
         colour={colour}
         dragging={draggingId === `${segment.windowKey}-body`}
-        columnCount={columnCount}
+        days={days}
       />
 
       {segment.isFirstSegment ? (
@@ -385,13 +399,13 @@ function WindowBody({
   text,
   colour,
   dragging,
-  columnCount,
+  days,
 }: {
   id: string
   text: string
   colour: string
   dragging: boolean
-  columnCount: number
+  days: { iso?: string; isOff: boolean }[]
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id })
   return (
@@ -410,16 +424,17 @@ function WindowBody({
             dragging && 'opacity-80',
           )}
           style={{
-            gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+            gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))`,
             transform: CSS.Translate.toString(transform),
           }}
         >
-          {Array.from({ length: columnCount }, (_, index) => (
+          {days.map((day, index) => (
             <span
               key={index}
               className={cn(
-                'h-full rounded-full',
+                'h-full rounded-full transition-colors',
                 colour,
+                day.isOff && 'window-band-muted',
                 dragging && 'ring-2 ring-foreground',
               )}
             />

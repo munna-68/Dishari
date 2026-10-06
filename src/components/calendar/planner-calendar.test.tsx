@@ -58,6 +58,42 @@ describe('PlannerCalendar band segmentation', () => {
     const staticStripes = container.querySelectorAll('.pointer-events-none.absolute.inset-x-0.top-0.h-1')
     expect(staticStripes.length).toBe(0)
   })
+
+  it('renders weekly off days and window band segments muted and desaturated inside visit window', () => {
+    const { container } = render(
+      <TooltipProvider>
+        <PlannerCalendar
+          monthKey="2026-10"
+          context={dummyContext}
+          windows={dummySchedule.windows}
+          schedule={dummySchedule}
+          selectedOfficerId={null}
+          onToggleDay={vi.fn()}
+          onMoveWindowEdge={vi.fn()}
+          onShiftWindow={vi.fn()}
+        />
+      </TooltipProvider>,
+    )
+
+    // 2026-10-02 is Friday (weekly-off) and falls within Window 1 (2026-10-01 to 2026-10-14)
+    const offDayInWindow = container.querySelector('[data-date="2026-10-02"]')
+    expect(offDayInWindow).toBeInTheDocument()
+    expect(offDayInWindow).toHaveClass('bg-window-one-muted-off', 'offday-hatch', 'text-muted-foreground')
+
+    // 2026-10-01 is Thursday (working day) in Window 1
+    const workingDayInWindow = container.querySelector('[data-date="2026-10-01"]')
+    expect(workingDayInWindow).toBeInTheDocument()
+    expect(workingDayInWindow).toHaveClass('bg-window-one-soft/50')
+
+    // 2026-10-30 is Friday (weekly-off) outside any window
+    const offDayOutsideWindow = container.querySelector('[data-date="2026-10-30"]')
+    expect(offDayOutsideWindow).toBeInTheDocument()
+    expect(offDayOutsideWindow).toHaveClass('bg-weekend', 'offday-hatch', 'text-muted-foreground')
+
+    // Window band segments over off days have window-band-muted class
+    const mutedBandSpans = container.querySelectorAll('.window-band-muted')
+    expect(mutedBandSpans.length).toBeGreaterThan(0)
+  })
 })
 
 describe('PlannerCalendar officer assignments & Google Calendar modal', () => {
