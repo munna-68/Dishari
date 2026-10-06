@@ -157,6 +157,10 @@ export function createPermanentOfficers(names: string[]): Officer[] {
     .map((name, index) => ({ id: `p-${index}-${slug(name)}`, name, kind: 'permanent' as const, crossedOut: false }))
 }
 
+export function createPermanentOfficer(name: string): Officer {
+  return { id: createId('p'), name: name.trim(), kind: 'permanent', crossedOut: false }
+}
+
 export function createTemporaryOfficer(name: string): Officer {
   return { id: createId('t'), name: name.trim(), kind: 'temporary', crossedOut: false }
 }

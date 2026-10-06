@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Trash2, UserRoundPlus } from 'lucide-react'
+import { GripVertical, PanelLeftClose, Trash2, UserRoundPlus } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -46,6 +46,7 @@ export interface OfficersPanelProps {
   onReorder: (activeId: string, overId: string) => void
   onSetRoster: () => void
   className?: string
+  onCollapse?: () => void
 }
 
 export function OfficersPanel({
@@ -61,6 +62,7 @@ export function OfficersPanel({
   onReorder,
   onSetRoster,
   className,
+  onCollapse,
 }: OfficersPanelProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -81,11 +83,29 @@ export function OfficersPanel({
 
   return (
     <Card className={cn('flex min-h-0 flex-col', className)}>
-      <CardHeader className="gap-1 px-4 py-3">
-        <CardTitle className="text-base">Officers</CardTitle>
-        <p className="text-xs text-muted-foreground">
-          {countText(permanent.length, temporary.length)}
-        </p>
+      <CardHeader className="flex flex-row items-start justify-between gap-2 px-4 py-3 space-y-0">
+        <div className="space-y-0.5">
+          <CardTitle className="text-base">Officers</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {countText(permanent.length, temporary.length)}
+          </p>
+        </div>
+        {onCollapse ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={onCollapse}
+                aria-label="Collapse officers panel"
+                className="text-muted-foreground hover:text-foreground shrink-0 -mr-1"
+              >
+                <PanelLeftClose className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Collapse panel (Ctrl+[ or Alt+O)</TooltipContent>
+          </Tooltip>
+        ) : null}
       </CardHeader>
 
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3 px-4 pb-4">

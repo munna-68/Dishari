@@ -220,3 +220,10 @@
     color-mix(in oklch, var(--muted-foreground) 22%, transparent) 4px
   );
 }
+
+/* Responsive resizable officers side panel column */
+@media (min-width: 1024px) {
+  .officers-panel-col {
+    width: var(--officers-width, 19rem);
+  }
+}
