@@ -43,6 +43,7 @@ export interface AssignmentsTabProps {
   onSetCustomRanges: (officerId: string, windowKey: WindowKey, ranges: DateRange[]) => void
   onSwapBranches: (windowKey: WindowKey, fromId: string, toId: string) => void
   onRememberBranch: (branch: string) => void
+  className?: string
 }
 
 export function AssignmentsTab({
@@ -56,16 +57,17 @@ export function AssignmentsTab({
   onSetCustomRanges,
   onSwapBranches,
   onRememberBranch,
+  className,
 }: AssignmentsTabProps) {
   const officers = printableOfficers(schedule)
 
   if (officers.length === 0) {
     return (
-      <Card>
-        <CardHeader className="px-4 py-3">
+      <Card className={cn('flex h-full w-full flex-col min-h-0', className)}>
+        <CardHeader className="px-4 py-3 shrink-0">
           <CardTitle className="text-base">Assignments</CardTitle>
         </CardHeader>
-        <CardContent className="px-4 pb-4 text-sm text-muted-foreground">
+        <CardContent className="px-4 pb-4 text-sm text-muted-foreground flex-1">
           Every officer in this month is crossed out, so there is nothing to print yet. Restore one from
           the Officers panel, or add a temporary officer.
         </CardContent>
@@ -74,13 +76,13 @@ export function AssignmentsTab({
   }
 
   return (
-    <Card>
-      <CardHeader className="px-4 py-3">
+    <Card className={cn('flex h-full w-full flex-col min-h-0', className)}>
+      <CardHeader className="shrink-0 px-4 py-3">
         <CardTitle className="text-base">Assignments</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3 px-4 pb-4">
+      <CardContent className="flex min-h-0 flex-1 flex-col space-y-3 px-4 pb-4">
         {warnings.length > 0 ? (
-          <ul className="space-y-1 rounded-md border border-dashed p-2 text-xs">
+          <ul className="shrink-0 space-y-1 rounded-md border border-dashed p-2 text-xs">
             {warnings.map((warning) => (
               <li key={warning.id} className="flex items-start gap-1.5">
                 <Lightbulb className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
@@ -90,23 +92,23 @@ export function AssignmentsTab({
           </ul>
         ) : null}
 
-        <div className="overflow-x-auto">
+        <div className="min-h-0 flex-1 overflow-auto rounded-md border">
           <table className="w-full min-w-[900px] border-collapse text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-card border-b shadow-xs">
               <tr className="text-left text-xs tracking-wide uppercase text-muted-foreground">
-                <th scope="col" className="w-44 py-2 pr-2 font-medium">
+                <th scope="col" className="w-44 py-2 pr-2 pl-3 font-medium bg-card">
                   Officer
                 </th>
-                <th scope="col" className="w-64 py-2 pr-2 font-medium">
+                <th scope="col" className="w-64 py-2 pr-2 font-medium bg-card">
                   Window 1 branch
                 </th>
-                <th scope="col" className="w-52 py-2 pr-2 font-medium">
+                <th scope="col" className="w-52 py-2 pr-2 font-medium bg-card">
                   Window 1 dates
                 </th>
-                <th scope="col" className="w-64 py-2 pr-2 font-medium">
+                <th scope="col" className="w-64 py-2 pr-2 font-medium bg-card">
                   Window 2 branch
                 </th>
-                <th scope="col" className="w-52 py-2 font-medium">
+                <th scope="col" className="w-52 py-2 pr-3 font-medium bg-card">
                   Window 2 dates
                 </th>
               </tr>
@@ -119,11 +121,11 @@ export function AssignmentsTab({
                   <tr
                     key={officer.id}
                     className={cn(
-                      'border-t align-top',
+                      'border-t align-top transition-colors',
                       selectedOfficerId === officer.id && 'bg-primary/5',
                     )}
                   >
-                    <th scope="row" className="py-2 pr-2 text-left font-medium">
+                    <th scope="row" className="py-2 pr-2 pl-3 text-left font-medium">
                       <button
                         type="button"
                         onClick={() => onSelectOfficer(officer.id)}
@@ -231,7 +233,7 @@ function AssignmentCells({
           }}
         />
       </td>
-      <td className="py-2 pr-2">
+      <td className={cn('py-2 pr-2', windowKey === 'two' && 'pr-3')}>
         <DndContext
           sensors={sensors}
           onDragStart={(event) => setActiveId(String(event.active.id))}

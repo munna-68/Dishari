@@ -34,6 +34,7 @@ export interface ActivitiesTabProps {
   onRemove: (index: number) => void
   onMove: (from: number, to: number) => void
   onCopyPrevious: () => void
+  className?: string
 }
 
 export function ActivitiesTab({
@@ -45,6 +46,7 @@ export function ActivitiesTab({
   onRemove,
   onMove,
   onCopyPrevious,
+  className,
 }: ActivitiesTabProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -61,8 +63,8 @@ export function ActivitiesTab({
   }
 
   return (
-    <Card>
-      <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 px-4 py-3">
+    <Card className={cn('flex h-full w-full flex-col min-h-0', className)}>
+      <CardHeader className="shrink-0 flex-row flex-wrap items-center justify-between gap-2 px-4 py-3">
         <CardTitle className="text-base">
           Activities <span className="text-sm font-normal text-muted-foreground">({activities.length})</span>
         </CardTitle>
@@ -72,9 +74,9 @@ export function ActivitiesTab({
         </Button>
       </CardHeader>
 
-      <CardContent className="space-y-3 px-4 pb-4">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 px-4 pb-4">
         {activities.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="shrink-0 text-sm text-muted-foreground">
             This month has no activity list yet. Add the monitoring tasks below, or copy the list from{' '}
             {previousMonthLabel}.
           </p>
@@ -86,7 +88,7 @@ export function ActivitiesTab({
           modifiers={[restrictToVerticalAxis, restrictToParentElement]}
           onDragEnd={handleDragEnd}
         >
-          <ScrollArea className="max-h-96">
+          <ScrollArea className="min-h-0 flex-1 pr-1">
             <SortableContext
               items={activities.map((_, index) => `activity-${index}`)}
               strategy={verticalListSortingStrategy}
@@ -109,7 +111,9 @@ export function ActivitiesTab({
           </ScrollArea>
         </DndContext>
 
-        <NewActivityInput onAdd={onAdd} />
+        <div className="shrink-0 pt-1">
+          <NewActivityInput onAdd={onAdd} />
+        </div>
       </CardContent>
     </Card>
   )

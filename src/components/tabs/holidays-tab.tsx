@@ -23,6 +23,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { WEEKDAY_LONG, monthIsoDays, parseMonthKey } from '@/lib/date'
 import { buildHolidayPrompt, describePromptScope, type PromptScope } from '@/lib/holidays'
+import { cn } from '@/lib/utils'
 import type { HolidayState } from '@/lib/working-days'
 
 export interface HolidaysTabProps {
@@ -32,6 +33,7 @@ export interface HolidaysTabProps {
   onImport: (text: string) => void
   onRemove: (iso: string) => void
   onClearImportedInMonth: () => void
+  className?: string
 }
 
 export function HolidaysTab({
@@ -41,6 +43,7 @@ export function HolidaysTab({
   onImport,
   onRemove,
   onClearImportedInMonth,
+  className,
 }: HolidaysTabProps) {
   const [scopeKind, setScopeKind] = useState<'month' | 'year'>('month')
 
@@ -66,11 +69,11 @@ export function HolidaysTab({
   if (!parts) return null
 
   return (
-    <Card>
-      <CardHeader className="px-4 py-3">
+    <Card className={cn('flex h-full w-full flex-col min-h-0', className)}>
+      <CardHeader className="shrink-0 px-4 py-3">
         <CardTitle className="text-base">Holidays</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4 px-4 pb-4">
+      <CardContent className="flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto px-4 pb-4">
         <section className="space-y-2">
           <h3 className="text-sm font-medium">Weekly off days</h3>
           <p className="text-xs text-muted-foreground">

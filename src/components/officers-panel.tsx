@@ -57,7 +57,7 @@ export function OfficersPanel({
   rosterNames = [],
   recentNames,
   selectedOfficerId,
-  defaultMode = 'permanent',
+  defaultMode = 'temporary',
   onSelect,
   onAddPermanent,
   onAddTemporary,
@@ -277,7 +277,7 @@ function OfficerGroup({
               onClick={onAddClick}
               className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground"
             >
-              + Add
+              + New
             </Button>
           ) : null}
         </div>
@@ -299,7 +299,7 @@ function OfficerGroup({
             onClick={onAddClick}
             className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
-            + Add
+            + New
           </Button>
         ) : null}
       </div>

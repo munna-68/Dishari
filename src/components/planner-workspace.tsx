@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { GripVertical, PanelLeftOpen } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { TopBar } from '@/components/app-top-bar'
@@ -14,11 +15,15 @@ import { HolidaysTab } from '@/components/tabs/holidays-tab'
 import { PreviewTab } from '@/components/tabs/preview-tab'
 import { WindowControls } from '@/components/window-controls'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { usePanelResize } from '@/hooks/use-panel-resize'
 import { monthLabel, shiftMonthKey } from '@/lib/date'
 import type { ParsedHolidayRow } from '@/lib/holidays'
 import { collectExportBlockers, collectScheduleWarnings } from '@/lib/schedule-ops'
 import { rememberBranchName, type WindowKey } from '@/lib/schema'
+import { cn } from '@/lib/utils'
 import { usePlanner } from '@/state/planner-context'
 
 export function PlannerWorkspace() {
@@ -34,6 +39,22 @@ export function PlannerWorkspace() {
     run,
     setMonthKey,
   } = planner
+
+  const panelResizeContainerRef = useRef<HTMLDivElement>(null)
+  const {
+    width: leftPanelWidth,
+    isCollapsed: isLeftPanelCollapsed,
+    isDragging: isLeftPanelDragging,
+    setIsCollapsed: setIsLeftPanelCollapsed,
+    toggleCollapsed: toggleLeftPanelCollapsed,
+    handlePointerDown: handleResizePointerDown,
+    handlePointerMove: handleResizePointerMove,
+    handlePointerUp: handleResizePointerUp,
+    handleResetWidth: handleResetPanelWidth,
+    handleKeyDown: handleResizeKeyDown,
+    minWidth: minPanelWidth,
+    maxWidth: maxPanelWidth,
+  } = usePanelResize({ containerRef: panelResizeContainerRef })
 
   const [selectedOfficerId, setSelectedOfficerId] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -124,6 +145,8 @@ export function PlannerWorkspace() {
         isBusy={isBusy}
         theme={theme}
         exportBlockers={exportBlockers}
+        isOfficersPanelCollapsed={isLeftPanelCollapsed}
+        onToggleOfficersPanel={toggleLeftPanelCollapsed}
         onPreviousMonth={planner.goToPreviousMonth}
         onNextMonth={planner.goToNextMonth}
         onMonthChange={setMonthKey}
@@ -174,18 +197,33 @@ export function PlannerWorkspace() {
           />
         ) : (
           <>
-            <div className="grid gap-4 xl:grid-cols-[19rem_minmax(0,1fr)]">
-              <div className="xl:h-[calc(100dvh-8.5rem)] xl:min-h-[32rem]">
+            <div
+              ref={panelResizeContainerRef}
+              style={{
+                '--officers-width': `${leftPanelWidth}px`,
+              } as React.CSSProperties}
+              className="relative flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-0"
+            >
+              {/* Officers Panel Column */}
+              <div
+                className={cn(
+                  'shrink-0 lg:h-[calc(100dvh-8.5rem)] lg:min-h-[32rem]',
+                  isLeftPanelCollapsed ? 'hidden' : 'w-full officers-panel-col',
+                  isLeftPanelDragging ? 'select-none transition-none' : 'transition-[width] duration-150 ease-out',
+                )}
+                aria-hidden={isLeftPanelCollapsed}
+              >
                 <OfficersPanel
-                  className="xl:h-full"
+                  className="h-full w-full"
                   officers={schedule.officers}
                   rosterNames={settings.defaultPermanentRoster}
                   recentNames={settings.recentTemporaryNames}
                   selectedOfficerId={selectedOfficerId}
+                  defaultMode="permanent"
                   onSelect={(officerId) =>
                     setSelectedOfficerId((current) => (current === officerId ? null : officerId))
                   }
-                  onAddPermanent={(name) => run({ type: 'month/addPermanent', monthKey, name })}
+                  onAddPermanent={(name: string) => run({ type: 'month/addPermanent', monthKey, name })}
                   onAddTemporary={(name) => run({ type: 'month/addTemporary', monthKey, name })}
                   onDismissRecent={(name) => run({ type: 'settings/dismissRecentName', name })}
                   onToggleCrossOut={(officerId) => run({ type: 'month/toggleCrossOut', monthKey, officerId }, { undo: true })}
@@ -195,10 +233,72 @@ export function PlannerWorkspace() {
                   }
                   onReorder={(activeId, overId) => run({ type: 'month/reorderOfficers', monthKey, activeId, overId })}
                   onSetRoster={() => run({ type: 'month/setRoster', monthKey })}
+                  onCollapse={() => setIsLeftPanelCollapsed(true)}
                 />
               </div>
 
-              <div className="flex min-w-0 flex-col gap-4">
+              {/* Draggable Divider (visible on desktop when uncollapsed) */}
+              {!isLeftPanelCollapsed ? (
+                <div
+                  role="separator"
+                  tabIndex={0}
+                  aria-orientation="vertical"
+                  aria-label="Resize officers panel"
+                  aria-valuenow={leftPanelWidth}
+                  aria-valuemin={minPanelWidth}
+                  aria-valuemax={maxPanelWidth}
+                  onPointerDown={handleResizePointerDown}
+                  onPointerMove={handleResizePointerMove}
+                  onPointerUp={handleResizePointerUp}
+                  onPointerCancel={handleResizePointerUp}
+                  onLostPointerCapture={handleResizePointerUp}
+                  onKeyDown={handleResizeKeyDown}
+                  onDoubleClick={handleResetPanelWidth}
+                  className={cn(
+                    'group relative hidden lg:flex w-4 shrink-0 cursor-col-resize select-none items-center justify-center touch-none outline-none',
+                    'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-sm',
+                    isLeftPanelDragging && 'select-none',
+                  )}
+                  title="Drag to resize · Double-click to reset (304px)"
+                >
+                  <div
+                    className={cn(
+                      'h-full w-px bg-border transition-colors',
+                      'group-hover:bg-primary/50 group-hover:w-[2px]',
+                      isLeftPanelDragging && 'bg-primary w-[2px]',
+                    )}
+                  />
+                  <div
+                    className={cn(
+                      'absolute flex h-8 w-3 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-2xs transition-all',
+                      'group-hover:border-primary/50 group-hover:text-foreground group-hover:scale-105',
+                      isLeftPanelDragging && 'border-primary bg-primary/10 text-primary scale-110',
+                    )}
+                  >
+                    <GripVertical className="size-3" />
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Main Right Column: Calendar & Controls */}
+              <div className="flex min-w-0 flex-1 flex-col gap-4">
+                {isLeftPanelCollapsed ? (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsLeftPanelCollapsed(false)}
+                      className="h-8 gap-2 border-dashed shadow-xs hover:border-solid hover:bg-accent text-xs font-medium"
+                    >
+                      <PanelLeftOpen className="size-4 text-primary" />
+                      <span>Show Officers Panel</span>
+                      <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-normal">
+                        {schedule.officers.length}
+                      </Badge>
+                    </Button>
+                  </div>
+                ) : null}
+
                 <WindowControls
                   windows={schedule.windows}
                   context={context}
@@ -229,7 +329,7 @@ export function PlannerWorkspace() {
                 <TabsTrigger value="preview">Preview</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="assignments" className="mt-3">
+              <TabsContent value="assignments" className="mt-3 h-[42rem] min-h-[42rem] w-full">
                 <AssignmentsTab
                   schedule={schedule}
                   settings={settings}
@@ -254,7 +354,7 @@ export function PlannerWorkspace() {
                 />
               </TabsContent>
 
-              <TabsContent value="activities" className="mt-3">
+              <TabsContent value="activities" className="mt-3 h-[42rem] min-h-[42rem] w-full">
                 <ActivitiesTab
                   activities={schedule.activities}
                   previousMonthLabel={monthLabel(previousMonthKey)}
@@ -267,7 +367,7 @@ export function PlannerWorkspace() {
                 />
               </TabsContent>
 
-              <TabsContent value="holidays" className="mt-3">
+              <TabsContent value="holidays" className="mt-3 h-[42rem] min-h-[42rem] w-full">
                 <HolidaysTab
                   monthKey={monthKey}
                   holidays={state.holidays}
@@ -280,7 +380,7 @@ export function PlannerWorkspace() {
                 />
               </TabsContent>
 
-              <TabsContent value="preview" className="mt-3">
+              <TabsContent value="preview" className="mt-3 h-[42rem] min-h-[42rem] w-full">
                 <PreviewTab
                   model={documentModel}
                   isBusy={isBusy}

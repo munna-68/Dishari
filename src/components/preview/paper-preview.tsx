@@ -64,26 +64,26 @@ export function PaperPreview({ model, className }: { model: DocumentModel; class
                           rowSpan={cell.rowSpan}
                           className="paper-rule border px-2 py-2 align-top"
                         >
-                          {/* A true hanging indent: the number sits in the margin. */}
                           <ol className="list-none space-y-1">
-                            {cell.text.split('\n').map((line, lineIndex) => {
-                              const match = /^(\d+\.)\s*(.*)$/.exec(line.trim())
-                              return (
-                                <li
-                                  key={lineIndex}
-                                  style={{ paddingLeft: '1.4em', textIndent: '-1.4em' }}
-                                >
-                                  {match ? (
-                                    <>
-                                      <span className="inline-block w-[1.4em] tabular-nums">{match[1]}</span>
-                                      {match[2]}
-                                    </>
-                                  ) : (
-                                    line
-                                  )}
-                                </li>
-                              )
-                            })}
+                            {cell.text
+                              .split('\n')
+                              .map((line) => line.trim())
+                              .filter((line) => line !== '')
+                              .map((line, lineIndex) => {
+                                const match = /^(\d+\.)\s*(.*)$/.exec(line)
+                                return (
+                                  <li key={lineIndex} className="flex items-start gap-1.5">
+                                    {match ? (
+                                      <>
+                                        <span className="shrink-0 tabular-nums">{match[1]}</span>
+                                        <span className="flex-1">{match[2]}</span>
+                                      </>
+                                    ) : (
+                                      <span className="flex-1">{line}</span>
+                                    )}
+                                  </li>
+                                )
+                              })}
                           </ol>
                         </td>
                       )
