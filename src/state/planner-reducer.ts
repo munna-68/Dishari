@@ -51,6 +51,7 @@ export type PlannerAction =
   | { type: 'month/startBlank'; monthKey: string }
   | { type: 'month/carryOver'; monthKey: string }
   | { type: 'month/loadSample'; monthKey: string }
+  | { type: 'month/loadDefault'; monthKey: string }
   | { type: 'month/setWindow'; monthKey: string; windowKey: WindowKey; range: DateRange }
   | { type: 'month/moveWindowEdge'; monthKey: string; windowKey: WindowKey; edge: 'start' | 'end'; date: string }
   | { type: 'month/shiftWindow'; monthKey: string; windowKey: WindowKey; deltaWorkingDays: number }
@@ -283,6 +284,29 @@ export function reduce(state: PlannerState, action: PlannerAction): ActionResult
           months: { ...state.months, [SAMPLE_MONTH_KEY]: sample.schedule },
         },
         message: 'Loaded the October 2026 sample.',
+      }
+    }
+
+    case 'month/loadDefault': {
+      const parts = parseMonthKey(action.monthKey)
+      const year = parts?.year ?? 1970
+      const month = parts?.month ?? 1
+      const isBenchmarkSample = action.monthKey === SAMPLE_MONTH_KEY
+      const defaults = isBenchmarkSample ? undefined : defaultWindows(year, month, contextOf(state))
+      const windows = defaults
+        ? {
+            one: { start: defaults.one.start, end: defaults.one.end },
+            two: { start: defaults.two.start, end: defaults.two.end },
+          }
+        : undefined
+      const defaultMonth = applyDefaultMonth(state.settings, year, month, windows)
+      return {
+        state: {
+          ...state,
+          settings: defaultMonth.settings,
+          months: { ...state.months, [action.monthKey]: defaultMonth.schedule },
+        },
+        message: `Loaded default data for ${monthKeyLabel(action.monthKey)}.`,
       }
     }
 
@@ -593,7 +617,7 @@ function blankMonth(state: PlannerState, monthKey: string): MonthSchedule {
       one: { start: defaults.one.start, end: defaults.one.end },
       two: { start: defaults.two.start, end: defaults.two.end },
     },
-    activities: [],
+    activities: [...DEFAULT_ACTIVITIES],
     officers,
     assignments,
   }

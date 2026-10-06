@@ -369,23 +369,23 @@ function AddTemporaryOfficer({
   }
 
   return (
-    <div className="space-y-1.5">
-      <label htmlFor="add-temporary" className="text-xs text-muted-foreground">
+    <div className="space-y-2">
+      <label htmlFor="add-temporary" className="text-xs font-medium text-muted-foreground">
         Add a temporary officer
       </label>
-      <div className="flex gap-1.5">
-        <Input
-          id="add-temporary"
-          value={value}
-          placeholder="Name, then press Enter"
-          onChange={(event) => setValue(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') submit()
-          }}
-          className="h-9"
-        />
-        <Button size="sm" onClick={submit} disabled={trimmed === ''}>
-          <UserRoundPlus />
+      <Input
+        id="add-temporary"
+        value={value}
+        placeholder="Name, then press Enter"
+        onChange={(event) => setValue(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') submit()
+        }}
+        className="h-9 w-full"
+      />
+      <div className="flex items-center gap-2">
+        <Button size="sm" onClick={submit} disabled={trimmed === ''} className="flex-1">
+          <UserRoundPlus className="size-4" />
           Add
         </Button>
         <Popover open={open} onOpenChange={setOpen}>
