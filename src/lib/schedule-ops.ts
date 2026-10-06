@@ -3,12 +3,14 @@ import {
   clampIso,
   compareIso,
   dayOfWeek,
+  isWithin,
   isValidIso,
   monthBounds,
   parseMonthKey,
 } from './date'
 import type { DateRange } from './date-format'
-import type { MonthSchedule, WindowKey } from './schema'
+import { printableOfficers } from './document-model'
+import type { MonthSchedule, Officer, WindowKey } from './schema'
 import {
   countWorkingDays,
   defaultWindows,
@@ -423,4 +425,56 @@ export function collectExportBlockers(schedule: MonthSchedule): ExportBlocker[] 
   }
 
   return blockers
+}
+
+export interface OfficerDayAssignment {
+  officer: Officer
+  windowKey: WindowKey
+  branch: string
+  isCustomRange: boolean
+  ranges: DateRange[]
+  note?: string
+}
+
+/**
+ * Returns all active officer assignments that cover a given ISO calendar date.
+ */
+export function getAssignmentsForDay(
+  iso: string,
+  schedule: MonthSchedule,
+): OfficerDayAssignment[] {
+  const result: OfficerDayAssignment[] = []
+  const windowKeys: WindowKey[] = ['one', 'two']
+  const officers = printableOfficers(schedule)
+
+  for (const officer of officers) {
+    const officerAssignments = schedule.assignments[officer.id]
+    if (!officerAssignments) continue
+
+    for (const windowKey of windowKeys) {
+      const entry = officerAssignments[windowKey]
+      if (!entry) continue
+
+      const hasCustom = Boolean(entry.customRanges && entry.customRanges.length > 0)
+      const ranges = hasCustom ? entry.customRanges : [schedule.windows[windowKey]]
+
+      const matches = ranges.some((range) => {
+        if (!range || !range.start || !range.end) return false
+        return isWithin(iso, range.start, range.end)
+      })
+
+      if (matches) {
+        result.push({
+          officer,
+          windowKey,
+          branch: entry.branch ? entry.branch.trim() : '',
+          isCustomRange: hasCustom,
+          ranges,
+          note: entry.note,
+        })
+      }
+    }
+  }
+
+  return result
 }

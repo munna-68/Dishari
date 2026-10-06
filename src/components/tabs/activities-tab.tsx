@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
@@ -8,8 +9,9 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core'
-import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers'
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import {
   SortableContext,
   sortableKeyboardCoordinates,
@@ -54,7 +56,23 @@ export function ActivitiesTab({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const activeIndex = useMemo(() => {
+    if (!activeId) return null
+    const idx = Number.parseInt(activeId.replace('activity-', ''), 10)
+    return Number.isNaN(idx) ? null : idx
+  }, [activeId])
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id))
+  }
+
+  function handleDragCancel() {
+    setActiveId(null)
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null)
     if (!event.over) return
     const from = Number(String(event.active.id).replace('activity-', ''))
     const to = Number(String(event.over.id).replace('activity-', ''))
@@ -85,7 +103,9 @@ export function ActivitiesTab({
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+          modifiers={[restrictToVerticalAxis]}
+          onDragStart={handleDragStart}
+          onDragCancel={handleDragCancel}
           onDragEnd={handleDragEnd}
         >
           <ScrollArea className="min-h-0 flex-1 pr-1">
@@ -109,6 +129,20 @@ export function ActivitiesTab({
               </ol>
             </SortableContext>
           </ScrollArea>
+
+          <DragOverlay dropAnimation={null}>
+            {activeIndex !== null && activities[activeIndex] !== undefined ? (
+              <div className="flex items-center gap-2 rounded-md border bg-card p-2 shadow-xl ring-2 ring-primary/40 cursor-grabbing pointer-events-none select-none opacity-95">
+                <span className="p-1 text-muted-foreground">
+                  <GripVertical className="size-4" aria-hidden />
+                </span>
+                <span className="w-5 shrink-0 text-right text-sm font-semibold text-muted-foreground tabular-nums">
+                  {activeIndex + 1}.
+                </span>
+                <p className="truncate text-sm font-medium">{activities[activeIndex]}</p>
+              </div>
+            ) : null}
+          </DragOverlay>
         </DndContext>
 
         <div className="shrink-0 pt-1">
@@ -140,10 +174,10 @@ function ActivityRow({
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
         'flex items-center gap-2 rounded-md border bg-card p-2',
-        isDragging && 'z-10 opacity-70 shadow-md',
+        isDragging && 'opacity-30 border-dashed border-primary/50 bg-muted/40',
       )}
     >
       <button

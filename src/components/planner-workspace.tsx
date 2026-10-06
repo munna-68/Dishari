@@ -310,12 +310,18 @@ export function PlannerWorkspace() {
                   context={context}
                   windows={schedule.windows}
                   schedule={schedule}
+                  settings={settings}
                   selectedOfficerId={selectedOfficerId}
+                  onSelectOfficer={setSelectedOfficerId}
                   onToggleDay={toggleDay}
                   onMoveWindowEdge={(windowKey, edge, iso) =>
                     run({ type: 'month/moveWindowEdge', monthKey, windowKey, edge, date: iso })
                   }
                   onShiftWindow={(windowKey, delta) => run({ type: 'month/shiftWindow', monthKey, windowKey, deltaWorkingDays: delta })}
+                  onSetBranch={(officerId, windowKey, branch) => run({ type: 'month/setBranch', monthKey, officerId, windowKey, branch })}
+                  onSetCustomRanges={(officerId, windowKey, ranges) => run({ type: 'month/setCustomRanges', monthKey, officerId, windowKey, ranges })}
+                  onSwapBranches={(windowKey, fromId, toId) => run({ type: 'month/swapBranches', monthKey, windowKey, fromId, toId })}
+                  onFollowWindow={(officerId, windowKey) => run({ type: 'month/followWindow', monthKey, officerId, windowKey })}
                   className="min-h-[34rem]"
                 />
               </div>

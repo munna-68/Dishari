@@ -1,13 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
   useDraggable,
+  useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core'
 import { CalendarRange, GripVertical, Lightbulb, RotateCcw } from 'lucide-react'
 
@@ -28,6 +31,12 @@ import type { HolidayContext } from '@/lib/working-days'
 import { isWorkingDay } from '@/lib/working-days'
 import { cn } from '@/lib/utils'
 
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
+
+function escapeRegExp(string: string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 const WINDOW_KEYS: WindowKey[] = ['one', 'two']
 const QUICK_BRANCHES = ['Issue-Based Monitoring', 'Special Visit at']
 const SPECIAL_VISIT_SUGGESTIONS = ['Special Visit at Lalmonirhat', 'Special Visit at Rangpur', 'Special Visit at Kurigram']
@@ -41,7 +50,12 @@ export interface AssignmentsTabProps {
   onSelectOfficer: (officerId: string) => void
   onSetBranch: (officerId: string, windowKey: WindowKey, branch: string) => void
   onSetCustomRanges: (officerId: string, windowKey: WindowKey, ranges: DateRange[]) => void
-  onSwapBranches: (windowKey: WindowKey, fromId: string, toId: string) => void
+  onSwapBranches: (
+    fromWindow: WindowKey,
+    fromOfficerId: string,
+    toWindow: WindowKey,
+    toOfficerId: string,
+  ) => void
   onRememberBranch: (branch: string) => void
   className?: string
 }
@@ -60,6 +74,47 @@ export function AssignmentsTab({
   className,
 }: AssignmentsTabProps) {
   const officers = printableOfficers(schedule)
+  const [activeCellId, setActiveCellId] = useState<string | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
+    useSensor(KeyboardSensor),
+  )
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveCellId(String(event.active.id))
+  }
+
+  function handleDragCancel() {
+    setActiveCellId(null)
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setActiveCellId(null)
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const [fromWindow, fromOfficerId] = String(active.id).split('::') as [WindowKey, string]
+    const [toWindow, toOfficerId] = String(over.id).split('::') as [WindowKey, string]
+
+    if (fromWindow === toWindow && fromOfficerId === toOfficerId) return
+
+    onSwapBranches(fromWindow, fromOfficerId, toWindow, toOfficerId)
+  }
+
+  const activeBranchData = useMemo(() => {
+    if (!activeCellId) return null
+    const [windowKey, officerId] = activeCellId.split('::') as [WindowKey, string]
+    const officer = officers.find((o) => o.id === officerId)
+    const branch = schedule.assignments[officerId]?.[windowKey]?.branch ?? ''
+    return {
+      officerId,
+      officerName: officer?.name ?? 'Officer',
+      windowKey,
+      branch,
+    }
+  }, [activeCellId, officers, schedule.assignments])
 
   if (officers.length === 0) {
     return (
@@ -92,76 +147,113 @@ export function AssignmentsTab({
           </ul>
         ) : null}
 
-        <div className="min-h-0 flex-1 overflow-auto rounded-md border">
-          <table className="w-full min-w-[900px] border-collapse text-sm">
-            <thead className="sticky top-0 z-10 bg-card border-b shadow-xs">
-              <tr className="text-left text-xs tracking-wide uppercase text-muted-foreground">
-                <th scope="col" className="w-44 py-2 pr-2 pl-3 font-medium bg-card">
-                  Officer
-                </th>
-                <th scope="col" className="w-64 py-2 pr-2 font-medium bg-card">
-                  Window 1 branch
-                </th>
-                <th scope="col" className="w-52 py-2 pr-2 font-medium bg-card">
-                  Window 1 dates
-                </th>
-                <th scope="col" className="w-64 py-2 pr-2 font-medium bg-card">
-                  Window 2 branch
-                </th>
-                <th scope="col" className="w-52 py-2 pr-3 font-medium bg-card">
-                  Window 2 dates
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {officers.map((officer) => {
-                const one = schedule.assignments[officer.id]?.one ?? { branch: '', customRanges: [] }
-                const two = schedule.assignments[officer.id]?.two ?? { branch: '', customRanges: [] }
-                return (
-                  <tr
-                    key={officer.id}
-                    className={cn(
-                      'border-t align-top transition-colors',
-                      selectedOfficerId === officer.id && 'bg-primary/5',
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragCancel={handleDragCancel}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="min-h-0 flex-1 overflow-auto rounded-md border">
+            <table className="w-full min-w-[960px] table-fixed border-collapse text-sm">
+              <colgroup>
+                <col className="w-[15%]" />
+                <col className="w-[28%]" />
+                <col className="w-[14.5%]" />
+                <col className="w-[28%]" />
+                <col className="w-[14.5%]" />
+              </colgroup>
+              <thead className="sticky top-0 z-10 bg-card border-b shadow-xs">
+                <tr className="text-left text-xs tracking-wide uppercase text-muted-foreground">
+                  <th scope="col" className="w-[15%] py-2 pr-2 pl-3 font-medium bg-card">
+                    Officer
+                  </th>
+                  <th scope="col" className="w-[28%] py-2 pr-2 font-medium bg-card">
+                    Window 1 branch
+                  </th>
+                  <th scope="col" className="w-[14.5%] py-2 pr-2 font-medium bg-card">
+                    Window 1 dates
+                  </th>
+                  <th scope="col" className="w-[28%] py-2 pr-2 font-medium bg-card">
+                    Window 2 branch
+                  </th>
+                  <th scope="col" className="w-[14.5%] py-2 pr-3 font-medium bg-card">
+                    Window 2 dates
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {officers.map((officer) => {
+                  const one = schedule.assignments[officer.id]?.one ?? { branch: '', customRanges: [] }
+                  const two = schedule.assignments[officer.id]?.two ?? { branch: '', customRanges: [] }
+                  return (
+                    <tr
+                      key={officer.id}
+                      className={cn(
+                        'border-t align-top transition-colors',
+                        selectedOfficerId === officer.id && 'bg-primary/5',
+                      )}
+                    >
+                      <th scope="row" className="py-2 pr-2 pl-3 text-left font-medium">
+                        <button
+                          type="button"
+                          onClick={() => onSelectOfficer(officer.id)}
+                          className="text-left hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                          {officer.name}
+                        </button>
+                        {officer.kind === 'temporary' ? (
+                          <Badge variant="outline" className="ml-1.5 px-1 py-0 text-[10px]">
+                            Temp
+                          </Badge>
+                        ) : null}
+                      </th>
+                      {WINDOW_KEYS.map((windowKey) => (
+                        <AssignmentCells
+                          key={windowKey}
+                          officerId={officer.id}
+                          officerName={officer.name}
+                          windowKey={windowKey}
+                          branch={windowKey === 'one' ? one.branch : two.branch}
+                          customRanges={windowKey === 'one' ? one.customRanges : two.customRanges}
+                          windowRange={schedule.windows[windowKey]}
+                          settings={settings}
+                          context={context}
+                          rememberedBranches={settings.recentBranchNames}
+                          activeDragId={activeCellId}
+                          onSetBranch={onSetBranch}
+                          onSetCustomRanges={onSetCustomRanges}
+                          onRememberBranch={onRememberBranch}
+                        />
+                      ))}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <DragOverlay dropAnimation={null}>
+            {activeBranchData ? (
+              <div className="flex max-w-xs items-center gap-2 rounded-lg border bg-card/95 px-3 py-2 text-sm shadow-xl backdrop-blur-xs ring-2 ring-primary/40 cursor-grabbing pointer-events-none select-none">
+                <GripVertical className="size-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span className="font-semibold text-foreground truncate">{activeBranchData.officerName}</span>
+                    <span>·</span>
+                    <span>Window {activeBranchData.windowKey === 'one' ? '1' : '2'}</span>
+                  </div>
+                  <p className="truncate text-xs font-medium text-foreground mt-0.5">
+                    {activeBranchData.branch.trim() !== '' ? (
+                      activeBranchData.branch
+                    ) : (
+                      <span className="italic text-muted-foreground">(Empty assignment)</span>
                     )}
-                  >
-                    <th scope="row" className="py-2 pr-2 pl-3 text-left font-medium">
-                      <button
-                        type="button"
-                        onClick={() => onSelectOfficer(officer.id)}
-                        className="text-left hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                      >
-                        {officer.name}
-                      </button>
-                      {officer.kind === 'temporary' ? (
-                        <Badge variant="outline" className="ml-1.5 px-1 py-0 text-[10px]">
-                          Temp
-                        </Badge>
-                      ) : null}
-                    </th>
-                    {WINDOW_KEYS.map((windowKey) => (
-                      <AssignmentCells
-                        key={windowKey}
-                        officerId={officer.id}
-                        windowKey={windowKey}
-                        branch={windowKey === 'one' ? one.branch : two.branch}
-                        customRanges={windowKey === 'one' ? one.customRanges : two.customRanges}
-                        windowRange={schedule.windows[windowKey]}
-                        settings={settings}
-                        context={context}
-                        rememberedBranches={settings.recentBranchNames}
-                        onSetBranch={onSetBranch}
-                        onSetCustomRanges={onSetCustomRanges}
-                        onRememberBranch={onRememberBranch}
-                        onSwapBranches={onSwapBranches}
-                      />
-                    ))}
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                  </p>
+                </div>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </CardContent>
     </Card>
   )
@@ -169,6 +261,7 @@ export function AssignmentsTab({
 
 function AssignmentCells({
   officerId,
+  officerName,
   windowKey,
   branch,
   customRanges,
@@ -176,12 +269,13 @@ function AssignmentCells({
   settings,
   context,
   rememberedBranches,
+  activeDragId,
   onSetBranch,
   onSetCustomRanges,
   onRememberBranch,
-  onSwapBranches,
 }: {
   officerId: string
+  officerName: string
   windowKey: WindowKey
   branch: string
   customRanges: DateRange[]
@@ -189,19 +283,11 @@ function AssignmentCells({
   settings: AppSettings
   context: HolidayContext
   rememberedBranches: string[]
+  activeDragId: string | null
   onSetBranch: (officerId: string, windowKey: WindowKey, branch: string) => void
   onSetCustomRanges: (officerId: string, windowKey: WindowKey, ranges: DateRange[]) => void
   onRememberBranch: (branch: string) => void
-  onSwapBranches: (windowKey: WindowKey, fromId: string, toId: string) => void
 }) {
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
-    useSensor(KeyboardSensor),
-  )
-
-  const [activeId, setActiveId] = useState<string | null>(null)
-
   const displayText = useMemo(() => {
     const ranges = customRanges.length > 0 ? customRanges : [windowRange]
     return formatRangeText(ranges, {
@@ -210,46 +296,34 @@ function AssignmentCells({
     })
   }, [customRanges, windowRange, settings.splitRangesAroundHolidays, context])
 
-  function handleDragEnd(event: DragEndEvent) {
-    setActiveId(null)
-    const overId = event.over ? String(event.over.id) : null
-    if (!overId) return
-    const [fromWindow, fromOfficer] = String(event.active.id).split('::') as [WindowKey, string]
-    const [toWindow] = overId.split('::') as [WindowKey]
-    if (fromWindow !== toWindow) return
-    onSwapBranches(toWindow, fromOfficer, overId.split('::')[1] as string)
-  }
+  const cellId = `${windowKey}::${officerId}`
 
   return (
     <>
-      <td className="py-2 pr-2">
+      <td className="py-2 pr-2 align-top">
         <BranchCell
-          cellId={`${windowKey}::${officerId}`}
+          cellId={cellId}
+          officerName={officerName}
+          windowKey={windowKey}
           value={branch}
           rememberedBranches={rememberedBranches}
+          activeDragId={activeDragId}
           onChange={(next) => onSetBranch(officerId, windowKey, next)}
           onCommit={() => {
             if (branch.trim() !== '') onRememberBranch(branch)
           }}
         />
       </td>
-      <td className={cn('py-2 pr-2', windowKey === 'two' && 'pr-3')}>
-        <DndContext
-          sensors={sensors}
-          onDragStart={(event) => setActiveId(String(event.active.id))}
-          onDragCancel={() => setActiveId(null)}
-          onDragEnd={handleDragEnd}
-        >
-          <DatesCell
-            displayText={displayText}
-            followsWindow={customRanges.length === 0}
-            windowRange={windowRange}
-            customRanges={customRanges}
-            context={context}
-            active={activeId !== null}
-            onChange={(ranges) => onSetCustomRanges(officerId, windowKey, ranges)}
-          />
-        </DndContext>
+      <td className={cn('py-2 pr-2 align-top', windowKey === 'two' && 'pr-3')}>
+        <DatesCell
+          displayText={displayText}
+          followsWindow={customRanges.length === 0}
+          windowRange={windowRange}
+          customRanges={customRanges}
+          context={context}
+          active={false}
+          onChange={(ranges) => onSetCustomRanges(officerId, windowKey, ranges)}
+        />
       </td>
     </>
   )
@@ -257,25 +331,48 @@ function AssignmentCells({
 
 function BranchCell({
   cellId,
+  officerName,
+  windowKey,
   value,
   rememberedBranches,
+  activeDragId,
   onChange,
   onCommit,
 }: {
   cellId: string
+  officerName: string
+  windowKey: WindowKey
   value: string
   rememberedBranches: string[]
+  activeDragId: string | null
   onChange: (next: string) => void
   onCommit: () => void
 }) {
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: cellId,
+    data: { cellId, officerName, windowKey, value },
+  })
+
+  const isDragging = activeDragId === cellId
+  const isDropTarget = isOver && activeDragId !== null && activeDragId !== cellId
+
   const [draft, setDraft] = useState(value)
-  const listboxId = `${cellId}-listbox`
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
   // Follow the stored value whenever it changes underneath the draft.
   const [lastValue, setLastValue] = useState(value)
   if (value !== lastValue) {
     setLastValue(value)
     setDraft(value)
   }
+
+  // Automatically adjust textarea height to fit content smoothly without horizontal column resizing.
+  useIsomorphicLayoutEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.max(34, el.scrollHeight)}px`
+  }, [draft])
 
   const remembered = useMemo(() => {
     const seen = new Set<string>()
@@ -291,60 +388,108 @@ function BranchCell({
   }, [rememberedBranches, value])
 
   return (
-    <div className="space-y-1">
+    <div
+      ref={setDropRef}
+      className={cn(
+        'relative rounded-md p-1 -m-1 transition-all w-full min-w-0 space-y-1',
+        isDragging && 'opacity-40 border border-dashed border-primary/50 bg-muted/30',
+        isDropTarget && 'ring-2 ring-primary ring-offset-1 bg-primary/10 shadow-sm border border-primary',
+      )}
+    >
       <div className="flex items-start gap-1">
-        <input
-          type="text"
-          role="combobox"
-          aria-expanded={false}
-          aria-controls={listboxId}
+        <textarea
+          ref={textareaRef}
+          rows={1}
           aria-label={`Branch for window ${cellId.startsWith('one') ? 1 : 2}`}
-          list={listboxId}
           value={draft}
           placeholder="Branch, District"
           onChange={(event) => {
-            setDraft(event.target.value)
-            onChange(event.target.value)
+            const next = event.target.value.replace(/[\r\n]+/g, ' ')
+            setDraft(next)
+            onChange(next)
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              event.currentTarget.blur()
+            }
           }}
           onBlur={() => {
             onCommit()
           }}
-          className="h-8 w-full rounded-md border bg-transparent px-2 py-1 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className={cn(
+            'min-h-[34px] w-full resize-none overflow-hidden rounded-md border bg-transparent px-2 py-1.5 text-sm leading-snug transition-[height] duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+            isDropTarget && 'border-primary bg-background/80 font-medium',
+          )}
         />
-        <BranchDragHandle cellId={cellId} />
+        <BranchDragHandle cellId={cellId} isDragging={isDragging} />
       </div>
-      <datalist id={listboxId}>
-        {rememberedBranches.map((entry) => (
-          <option key={entry} value={entry} />
-        ))}
-      </datalist>
+
+      {isDropTarget ? (
+        <div className="pointer-events-none absolute -top-2 right-2 z-20 rounded bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground shadow-xs animate-in fade-in zoom-in-95">
+          Drop to swap
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-1">
-        {QUICK_BRANCHES.map((entry) => (
-          <button
-            key={entry}
-            type="button"
-            onClick={() => {
-              const next = draft.trim() === '' ? entry : `${draft.trim()} ${entry}`
-              setDraft(next)
-              onChange(next)
-            }}
-            className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            + {entry}
-          </button>
-        ))}
+        {QUICK_BRANCHES.map((entry) => {
+          const isSelected = draft.toLowerCase().includes(entry.toLowerCase())
+          return (
+            <button
+              key={entry}
+              type="button"
+              onClick={() => {
+                let next: string
+                if (isSelected) {
+                  next = draft
+                    .replace(new RegExp(escapeRegExp(entry), 'gi'), '')
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                } else {
+                  next = draft.trim() === '' ? entry : `${draft.trim()} ${entry}`
+                }
+                setDraft(next)
+                onChange(next)
+              }}
+              className={cn(
+                'rounded-full border px-2 py-0.5 text-[11px] transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                isSelected
+                  ? 'border-primary/40 bg-primary/10 font-medium text-primary hover:bg-primary/20'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+              )}
+            >
+              {isSelected ? `- ${entry}` : `+ ${entry}`}
+            </button>
+          )
+        })}
       </div>
       {rememberedBranches.length > 0 && remembered.length > 0 ? (
-        <p className="truncate text-[11px] text-muted-foreground" title={remembered.join(' · ')}>
-          Seen before: {remembered.join(' · ')}
-        </p>
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0">
+          <span className="shrink-0 text-muted-foreground/75">Seen before:</span>
+          <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+            {remembered.map((entry) => (
+              <button
+                key={entry}
+                type="button"
+                onClick={() => {
+                  setDraft(entry)
+                  onChange(entry)
+                }}
+                className="max-w-full truncate rounded px-1 py-0.5 text-left transition-colors hover:bg-accent hover:text-foreground hover:underline"
+                title={`Use "${entry}"`}
+              >
+                {entry}
+              </button>
+            ))}
+          </div>
+        </div>
       ) : null}
     </div>
   )
 }
 
-function BranchDragHandle({ cellId }: { cellId: string }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: cellId })
+function BranchDragHandle({ cellId, isDragging }: { cellId: string; isDragging?: boolean }) {
+  const { attributes, listeners, setNodeRef } = useDraggable({ id: cellId })
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -353,9 +498,9 @@ function BranchDragHandle({ cellId }: { cellId: string }) {
           type="button"
           {...listeners}
           {...attributes}
-          aria-label="Drag this branch onto another cell to swap the two"
+          aria-label="Drag this branch onto another cell to swap or reassign"
           className={cn(
-            'mt-0.5 cursor-grab touch-none rounded-sm p-1 text-muted-foreground hover:text-foreground',
+            'mt-1 cursor-grab touch-none rounded-sm p-1 text-muted-foreground hover:text-foreground shrink-0',
             'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:cursor-grabbing',
             isDragging && 'text-foreground',
           )}
@@ -363,7 +508,7 @@ function BranchDragHandle({ cellId }: { cellId: string }) {
           <GripVertical className="size-4" aria-hidden />
         </button>
       </TooltipTrigger>
-      <TooltipContent>Drag onto another branch cell in the same window to swap them.</TooltipContent>
+      <TooltipContent>Drag onto another branch cell to reassign or swap.</TooltipContent>
     </Tooltip>
   )
 }

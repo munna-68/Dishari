@@ -1,0 +1,220 @@
+import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { AssignmentsTab } from './assignments-tab'
+import { defaultSettings } from '@/lib/schema'
+import { emptyHolidayContext } from '@/lib/working-days'
+import type { MonthSchedule } from '@/lib/schema'
+
+describe('AssignmentsTab - Fixed width layout and input experience', () => {
+  const dummySchedule: MonthSchedule = {
+    schemaVersion: 1,
+    year: 2026,
+    month: 10,
+    windows: {
+      one: { start: '2026-10-01', end: '2026-10-14' },
+      two: { start: '2026-10-15', end: '2026-10-27' },
+    },
+    activities: ['Activity 1'],
+    officers: [
+      { id: 'off-1', name: 'Moyen Uddin', kind: 'permanent', crossedOut: false },
+      { id: 'off-2', name: 'Jamir Uddin', kind: 'permanent', crossedOut: false },
+    ],
+    assignments: {
+      'off-1': {
+        one: { branch: 'Mangalpur, Dinajpur', customRanges: [] },
+        two: { branch: 'Hatrampur, Dinajpur', customRanges: [] },
+      },
+      'off-2': {
+        one: { branch: '', customRanges: [] },
+        two: { branch: '', customRanges: [] },
+      },
+    },
+  }
+
+  const dummySettings = {
+    ...defaultSettings(),
+    recentBranchNames: ['Patgram Sadar, Lalmonirhat', 'Pirgonj, Rangpur'],
+  }
+  const dummyContext = emptyHolidayContext([5, 6])
+
+  it('renders a table with table-fixed and fixed colgroup proportions', () => {
+    const { container } = render(
+      <TooltipProvider>
+        <AssignmentsTab
+          schedule={dummySchedule}
+          settings={dummySettings}
+          context={dummyContext}
+          warnings={[]}
+          selectedOfficerId={null}
+          onSelectOfficer={vi.fn()}
+          onSetBranch={vi.fn()}
+          onSetCustomRanges={vi.fn()}
+          onSwapBranches={vi.fn()}
+          onRememberBranch={vi.fn()}
+        />
+      </TooltipProvider>,
+    )
+
+    const table = container.querySelector('table')
+    expect(table).toHaveClass('table-fixed')
+
+    const cols = container.querySelectorAll('colgroup col')
+    expect(cols).toHaveLength(5)
+    expect(cols[0]).toHaveClass('w-[15%]')
+    expect(cols[1]).toHaveClass('w-[28%]')
+    expect(cols[2]).toHaveClass('w-[14.5%]')
+    expect(cols[3]).toHaveClass('w-[28%]')
+    expect(cols[4]).toHaveClass('w-[14.5%]')
+  })
+
+  it('renders textarea inputs for branch names with auto-sizing support', () => {
+    render(
+      <TooltipProvider>
+        <AssignmentsTab
+          schedule={dummySchedule}
+          settings={dummySettings}
+          context={dummyContext}
+          warnings={[]}
+          selectedOfficerId={null}
+          onSelectOfficer={vi.fn()}
+          onSetBranch={vi.fn()}
+          onSetCustomRanges={vi.fn()}
+          onSwapBranches={vi.fn()}
+          onRememberBranch={vi.fn()}
+        />
+      </TooltipProvider>,
+    )
+
+    const textareas = screen.getAllByRole('textbox')
+    expect(textareas.length).toBeGreaterThanOrEqual(2)
+    expect(textareas[0]).toHaveValue('Mangalpur, Dinajpur')
+    expect(textareas[0]?.tagName.toLowerCase()).toBe('textarea')
+  })
+
+  it('toggles Issue-Based Monitoring on click', () => {
+    const onSetBranch = vi.fn()
+    render(
+      <TooltipProvider>
+        <AssignmentsTab
+          schedule={dummySchedule}
+          settings={dummySettings}
+          context={dummyContext}
+          warnings={[]}
+          selectedOfficerId={null}
+          onSelectOfficer={vi.fn()}
+          onSetBranch={onSetBranch}
+          onSetCustomRanges={vi.fn()}
+          onSwapBranches={vi.fn()}
+          onRememberBranch={vi.fn()}
+        />
+      </TooltipProvider>,
+    )
+
+    // Button starts as "+ Issue-Based Monitoring" for Moyen Uddin window 1
+    const addButtons = screen.getAllByRole('button', { name: /\+ Issue-Based Monitoring/i })
+    expect(addButtons.length).toBeGreaterThan(0)
+
+    fireEvent.click(addButtons[0]!)
+    expect(onSetBranch).toHaveBeenCalledWith(
+      'off-1',
+      'one',
+      'Mangalpur, Dinajpur Issue-Based Monitoring',
+    )
+  })
+
+  it('toggles off Issue-Based Monitoring when already present', () => {
+    const onSetBranch = vi.fn()
+    const scheduleWithMonitoring: MonthSchedule = {
+      ...dummySchedule,
+      assignments: {
+        ...dummySchedule.assignments,
+        'off-1': {
+          one: { branch: 'Mangalpur, Dinajpur Issue-Based Monitoring', customRanges: [] },
+          two: { branch: 'Hatrampur, Dinajpur', customRanges: [] },
+        },
+      },
+    }
+
+    render(
+      <TooltipProvider>
+        <AssignmentsTab
+          schedule={scheduleWithMonitoring}
+          settings={dummySettings}
+          context={dummyContext}
+          warnings={[]}
+          selectedOfficerId={null}
+          onSelectOfficer={vi.fn()}
+          onSetBranch={onSetBranch}
+          onSetCustomRanges={vi.fn()}
+          onSwapBranches={vi.fn()}
+          onRememberBranch={vi.fn()}
+        />
+      </TooltipProvider>,
+    )
+
+    // Button should display "- Issue-Based Monitoring"
+    const removeButton = screen.getByRole('button', { name: /- Issue-Based Monitoring/i })
+    expect(removeButton).toBeInTheDocument()
+
+    fireEvent.click(removeButton)
+    expect(onSetBranch).toHaveBeenCalledWith(
+      'off-1',
+      'one',
+      'Mangalpur, Dinajpur',
+    )
+  })
+
+  it('allows clicking a "Seen before" suggestion to set the branch', () => {
+    const onSetBranch = vi.fn()
+    render(
+      <TooltipProvider>
+        <AssignmentsTab
+          schedule={dummySchedule}
+          settings={dummySettings}
+          context={dummyContext}
+          warnings={[]}
+          selectedOfficerId={null}
+          onSelectOfficer={vi.fn()}
+          onSetBranch={onSetBranch}
+          onSetCustomRanges={vi.fn()}
+          onSwapBranches={vi.fn()}
+          onRememberBranch={vi.fn()}
+        />
+      </TooltipProvider>,
+    )
+
+    const suggestionButton = screen.getAllByRole('button', { name: /Patgram Sadar, Lalmonirhat/i })[0]!
+    fireEvent.click(suggestionButton)
+    expect(onSetBranch).toHaveBeenCalledWith(
+      'off-1',
+      'one',
+      'Patgram Sadar, Lalmonirhat',
+    )
+  })
+
+  it('prevents newline on Enter key in branch textarea and triggers blur', () => {
+    render(
+      <TooltipProvider>
+        <AssignmentsTab
+          schedule={dummySchedule}
+          settings={dummySettings}
+          context={dummyContext}
+          warnings={[]}
+          selectedOfficerId={null}
+          onSelectOfficer={vi.fn()}
+          onSetBranch={vi.fn()}
+          onSetCustomRanges={vi.fn()}
+          onSwapBranches={vi.fn()}
+          onRememberBranch={vi.fn()}
+        />
+      </TooltipProvider>,
+    )
+
+    const textarea = screen.getAllByRole('textbox')[0]!
+    const blurSpy = vi.spyOn(textarea, 'blur')
+
+    fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' })
+    expect(blurSpy).toHaveBeenCalled()
+  })
+})

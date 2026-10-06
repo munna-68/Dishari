@@ -13,12 +13,22 @@ import { CSS } from '@dnd-kit/utilities'
 
 import { DAY_LEGEND } from '@/components/calendar/calendar-legend'
 import { DayCell } from '@/components/calendar/day-cell'
+import { DayDetailsDialog } from '@/components/calendar/day-details-dialog'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { WEEKDAY_SHORT, compareIso, eachIsoDay, isWithin, monthGridIsoDays, parseMonthKey } from '@/lib/date'
 import type { DateRange } from '@/lib/date-format'
-import { shiftDateByWorkingDays } from '@/lib/schedule-ops'
-import type { MonthSchedule, WindowKey } from '@/lib/schema'
+import { printableOfficers } from '@/lib/document-model'
+import { getAssignmentsForDay, shiftDateByWorkingDays } from '@/lib/schedule-ops'
+import { defaultSettings, type AppSettings, type MonthSchedule, type WindowKey } from '@/lib/schema'
 import { cn } from '@/lib/utils'
 import type { HolidayContext } from '@/lib/working-days'
 import { holidayLabel, isToday, resolveDayStatus } from '@/lib/working-days'
@@ -28,10 +38,16 @@ export interface PlannerCalendarProps {
   context: HolidayContext
   windows: Record<WindowKey, DateRange>
   schedule: MonthSchedule
+  settings?: AppSettings
   selectedOfficerId: string | null
+  onSelectOfficer?: (officerId: string | null) => void
   onToggleDay: (iso: string) => void
   onMoveWindowEdge: (windowKey: WindowKey, edge: 'start' | 'end', iso: string) => void
   onShiftWindow: (windowKey: WindowKey, deltaWorkingDays: number) => void
+  onSetBranch?: (officerId: string, windowKey: WindowKey, branch: string) => void
+  onSetCustomRanges?: (officerId: string, windowKey: WindowKey, ranges: DateRange[]) => void
+  onSwapBranches?: (windowKey: WindowKey, fromId: string, toId: string) => void
+  onFollowWindow?: (officerId: string, windowKey: WindowKey) => void
   className?: string
 }
 
@@ -52,14 +68,22 @@ export function PlannerCalendar({
   context,
   windows,
   schedule,
+  settings,
   selectedOfficerId,
+  onSelectOfficer,
   onToggleDay,
   onMoveWindowEdge,
   onShiftWindow,
+  onSetBranch,
+  onSetCustomRanges,
+  onSwapBranches,
+  onFollowWindow,
   className,
 }: PlannerCalendarProps) {
   const gridRef = useRef<HTMLDivElement>(null)
   const [dragging, setDragging] = useState<string | null>(null)
+  const [activeModalDate, setActiveModalDate] = useState<string | null>(null)
+  const [focusedOfficerId, setFocusedOfficerId] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -67,10 +91,20 @@ export function PlannerCalendar({
     useSensor(KeyboardSensor),
   )
 
+  const activeOfficers = useMemo(() => printableOfficers(schedule), [schedule])
+
   const gridDays = useMemo(() => {
     const parts = parseMonthKey(monthKey)
     return parts ? monthGridIsoDays(parts.year, parts.month) : []
   }, [monthKey])
+
+  const assignmentsByDay = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof getAssignmentsForDay>>()
+    for (const iso of gridDays) {
+      map.set(iso, getAssignmentsForDay(iso, schedule))
+    }
+    return map
+  }, [gridDays, schedule])
 
   const officerRangeDays = useMemo(() => {
     const set = new Set<string>()
@@ -118,9 +152,49 @@ export function PlannerCalendar({
   return (
     <Card className={cn('flex min-h-0 flex-col', className)}>
       <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 px-4 py-3">
-        <CardTitle className="text-base">Calendar</CardTitle>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <CardTitle className="text-base">Calendar</CardTitle>
+
+          {onSelectOfficer ? (
+            <div className="flex items-center gap-1.5 pl-1">
+              <span className="text-xs text-muted-foreground font-medium hidden sm:inline">
+                Officer:
+              </span>
+              <Select
+                value={selectedOfficerId ?? 'all'}
+                onValueChange={(val) => onSelectOfficer(val === 'all' ? null : val)}
+              >
+                <SelectTrigger size="sm" className="h-7 w-[160px] sm:w-[190px] text-xs">
+                  <SelectValue placeholder="All officers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs font-medium">
+                    All officers ({activeOfficers.length})
+                  </SelectItem>
+                  {activeOfficers.map((officer) => (
+                    <SelectItem key={officer.id} value={officer.id} className="text-xs">
+                      {officer.name} {officer.kind === 'temporary' ? '(Temp)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedOfficerId ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => onSelectOfficer(null)}
+                >
+                  Show all
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
         <CalendarLegend />
       </CardHeader>
+
       <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4">
         <div className="grid grid-cols-7 gap-1">
           {WEEKDAY_SHORT.map((label, index) => (
@@ -158,7 +232,16 @@ export function PlannerCalendar({
                   inWindowOne={isWithin(iso, windows.one.start, windows.one.end)}
                   inWindowTwo={isWithin(iso, windows.two.start, windows.two.end)}
                   isOfficerRange={officerRangeDays.has(iso)}
-                  onClick={() => onToggleDay(iso)}
+                  assignments={assignmentsByDay.get(iso) ?? []}
+                  selectedOfficerId={selectedOfficerId}
+                  onClick={() => {
+                    setActiveModalDate(iso)
+                    setFocusedOfficerId(null)
+                  }}
+                  onAssignmentClick={(officerId) => {
+                    setActiveModalDate(iso)
+                    setFocusedOfficerId(officerId)
+                  }}
                 />
               )
             })}
@@ -178,10 +261,32 @@ export function PlannerCalendar({
         </DndContext>
 
         <p className="text-xs text-muted-foreground">
-          Click a date to change its holiday status. Drag a band end to move that window edge, or drag the
-          middle of a band to shift the whole window while keeping its working-day length.
+          Click any date to view details and edit officer branch assignments, or adjust holiday status. Drag a band end to move that window edge, or drag the middle of a band to shift the window.
         </p>
       </CardContent>
+
+      {/* Google Calendar-style details modal */}
+      {activeModalDate ? (
+        <DayDetailsDialog
+          open={activeModalDate !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setActiveModalDate(null)
+              setFocusedOfficerId(null)
+            }
+          }}
+          iso={activeModalDate}
+          focusedOfficerId={focusedOfficerId}
+          schedule={schedule}
+          settings={settings ?? defaultSettings()}
+          context={context}
+          onSetBranch={onSetBranch ?? (() => {})}
+          onSetCustomRanges={onSetCustomRanges ?? (() => {})}
+          onSwapBranches={onSwapBranches}
+          onFollowWindow={onFollowWindow}
+          onToggleDay={onToggleDay}
+        />
+      ) : null}
     </Card>
   )
 }

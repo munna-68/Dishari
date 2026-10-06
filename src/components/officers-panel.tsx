@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
@@ -8,8 +9,9 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core'
-import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers'
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import {
   SortableContext,
   sortableKeyboardCoordinates,
@@ -98,10 +100,22 @@ export function OfficersPanel({
     (item) => !item.isInMonth || item.isCrossedOut,
   )
 
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const activeOfficer = activeId ? officers.find((o) => o.id === activeId) ?? null : null
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id))
+  }
+
+  function handleDragCancel() {
+    setActiveId(null)
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null)
     const activeId = String(event.active.id)
     const overId = event.over ? String(event.over.id) : null
-    if (!overId) return
+    if (!overId || activeId === overId) return
     onReorder(activeId, overId)
   }
 
@@ -193,7 +207,9 @@ export function OfficersPanel({
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+          modifiers={[restrictToVerticalAxis]}
+          onDragStart={handleDragStart}
+          onDragCancel={handleDragCancel}
           onDragEnd={handleDragEnd}
         >
           <ScrollArea className="-mx-1 max-h-[26rem] min-h-0 flex-1 px-1 xl:max-h-full">
@@ -226,6 +242,28 @@ export function OfficersPanel({
               />
             </div>
           </ScrollArea>
+
+          <DragOverlay dropAnimation={null}>
+            {activeOfficer ? (
+              <div className="flex items-center gap-2 rounded-md border bg-card p-2 shadow-xl ring-2 ring-primary/40 cursor-grabbing pointer-events-none select-none opacity-95">
+                <span className="p-1 text-muted-foreground">
+                  <GripVertical className="size-4" aria-hidden />
+                </span>
+                <span
+                  aria-hidden
+                  className={cn(
+                    'flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold',
+                    activeOfficer.crossedOut && 'line-through',
+                  )}
+                >
+                  {initials(activeOfficer.name)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{activeOfficer.name}</p>
+                </div>
+              </div>
+            ) : null}
+          </DragOverlay>
         </DndContext>
 
         <Tooltip>
@@ -353,10 +391,10 @@ function OfficerCard({
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
         'flex items-center gap-2 rounded-md border bg-card p-2',
-        isDragging && 'z-10 opacity-70 shadow-md',
+        isDragging && 'opacity-30 border-dashed border-primary/50 bg-muted/40',
         officer.crossedOut && 'bg-muted/60',
         isSelected && 'ring-primary/50 ring-2',
       )}
