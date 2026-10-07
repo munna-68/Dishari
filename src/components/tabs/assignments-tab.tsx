@@ -22,7 +22,6 @@ import {
   RotateCcw,
 } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -44,9 +43,8 @@ import type { DateRange } from '@/lib/date-format'
 import { printableOfficers } from '@/lib/document-model'
 import {
   getBranchAccent,
-  getOfficerColor,
-  getOfficerInitials,
 } from '@/lib/officer-colors'
+import { OfficerAvatar, OfficerKindBadge } from '@/components/officer-badge'
 import type { AppSettings, MonthSchedule, WindowKey } from '@/lib/schema'
 import type { HolidayContext } from '@/lib/working-days'
 import { countWorkingDays, isWorkingDay } from '@/lib/working-days'
@@ -200,26 +198,26 @@ export function AssignmentsTab({
                   </th>
                   <th scope="col" className="w-[28%] py-3 px-3 bg-card/95">
                     <div className="flex items-center gap-1.5">
-                      <span className="size-2 rounded-full bg-blue-500 shrink-0" aria-hidden />
-                      <span className="text-blue-900 dark:text-blue-300">Window 1 branch</span>
+                      <span className="size-2 rounded-full bg-blue-500 shrink-0 shadow-xs" aria-hidden />
+                      <span className="text-blue-700 dark:text-blue-300 font-bold">Window 1 branch</span>
                     </div>
                   </th>
                   <th scope="col" className="w-[14.5%] py-3 px-3 bg-card/95">
                     <div className="flex items-center gap-1.5">
-                      <span className="size-2 rounded-full bg-blue-500 shrink-0" aria-hidden />
-                      <span className="text-blue-900 dark:text-blue-300">Window 1 dates</span>
+                      <span className="size-2 rounded-full bg-blue-500 shrink-0 shadow-xs" aria-hidden />
+                      <span className="text-blue-700 dark:text-blue-300 font-bold">Window 1 dates</span>
                     </div>
                   </th>
                   <th scope="col" className="w-[28%] py-3 px-3 bg-card/95">
                     <div className="flex items-center gap-1.5">
-                      <span className="size-2 rounded-full bg-emerald-500 shrink-0" aria-hidden />
-                      <span className="text-emerald-900 dark:text-emerald-300">Window 2 branch</span>
+                      <span className="size-2 rounded-full bg-emerald-500 shrink-0 shadow-xs" aria-hidden />
+                      <span className="text-emerald-700 dark:text-emerald-300 font-bold">Window 2 branch</span>
                     </div>
                   </th>
                   <th scope="col" className="w-[14.5%] py-3 pl-3 pr-4 bg-card/95">
                     <div className="flex items-center gap-1.5">
-                      <span className="size-2 rounded-full bg-emerald-500 shrink-0" aria-hidden />
-                      <span className="text-emerald-900 dark:text-emerald-300">Window 2 dates</span>
+                      <span className="size-2 rounded-full bg-emerald-500 shrink-0 shadow-xs" aria-hidden />
+                      <span className="text-emerald-700 dark:text-emerald-300 font-bold">Window 2 dates</span>
                     </div>
                   </th>
                 </tr>
@@ -228,7 +226,6 @@ export function AssignmentsTab({
                 {officers.map((officer, officerIndex) => {
                   const one = schedule.assignments[officer.id]?.one ?? { branch: '', customRanges: [] }
                   const two = schedule.assignments[officer.id]?.two ?? { branch: '', customRanges: [] }
-                  const officerColor = getOfficerColor(officer.id, officers)
 
                   return (
                     <tr
@@ -238,20 +235,10 @@ export function AssignmentsTab({
                         selectedOfficerId === officer.id && 'bg-primary/5',
                       )}
                     >
-                      {/* Officer Column with styled Avatar */}
+                      {/* Officer Column with styled Avatar & Kind Badge */}
                       <th scope="row" className="py-3.5 pl-4 pr-3 text-left font-normal align-top">
                         <div className="flex items-center gap-2.5 min-w-0 pt-1">
-                          <div
-                            className={cn(
-                              'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-all shadow-2xs select-none border',
-                              officerColor.avatarBg,
-                              officerColor.avatarText,
-                              officerColor.avatarBorder,
-                            )}
-                            aria-hidden
-                          >
-                            {getOfficerInitials(officer.name)}
-                          </div>
+                          <OfficerAvatar officer={officer} />
                           <div className="min-w-0 flex-1">
                             <button
                               type="button"
@@ -261,11 +248,7 @@ export function AssignmentsTab({
                             >
                               {officer.name}
                             </button>
-                            {officer.kind === 'temporary' ? (
-                              <Badge variant="outline" className="mt-0.5 px-1 py-0 text-[10px] font-normal text-muted-foreground">
-                                Temp
-                              </Badge>
-                            ) : null}
+                            <OfficerKindBadge kind={officer.kind} className="mt-1" />
                           </div>
                         </div>
                       </th>
@@ -486,7 +469,7 @@ function BranchCell({
       ref={setDropRef}
       className={cn(
         'group relative flex flex-col justify-between rounded-xl border bg-card p-3 transition-all w-full min-w-0 min-h-[102px]',
-        'border-border/70 border-l-[3.5px]',
+        'border-border/70 border-l-4',
         branchAccent.borderAccent,
         branchAccent.shadowAccent,
         isDragging && 'opacity-40 border-dashed border-primary/50 bg-muted/30 shadow-none',
@@ -652,15 +635,15 @@ const WINDOW_DATES_THEMES: Record<
   one: {
     bg: 'bg-[#f0f6ff] border-[#c8ddfd] dark:bg-blue-950/25 dark:border-blue-900/40 text-slate-800 dark:text-slate-100',
     hoverBorder: 'hover:border-blue-300 dark:hover:border-blue-800/80',
-    shadow: 'shadow-[0_2px_8px_-2px_rgba(59,130,246,0.12)] hover:shadow-[0_4px_12px_-2px_rgba(59,130,246,0.2)] dark:shadow-[0_2px_8px_-2px_rgba(59,130,246,0.2)]',
+    shadow: 'shadow-[0_2px_10px_-1px_rgba(59,130,246,0.18)] hover:shadow-[0_4px_14px_-1px_rgba(59,130,246,0.28)] dark:shadow-[0_2px_10px_-1px_rgba(59,130,246,0.28)]',
     icon: 'text-blue-600 dark:text-blue-400',
     buttonHover: 'hover:bg-blue-100/70 dark:hover:bg-blue-900/40 text-slate-600 dark:text-slate-400 hover:text-blue-900 dark:hover:text-blue-100',
   },
   two: {
     bg: 'bg-[#edf7f4] border-[#cbe4db] dark:bg-emerald-950/20 dark:border-emerald-900/40 text-slate-800 dark:text-slate-100',
     hoverBorder: 'hover:border-emerald-300 dark:hover:border-emerald-800/80',
-    shadow: 'shadow-[0_2px_8px_-2px_rgba(16,185,129,0.12)] hover:shadow-[0_4px_12px_-2px_rgba(16,185,129,0.2)] dark:shadow-[0_2px_8px_-2px_rgba(16,185,129,0.2)]',
-    icon: 'text-teal-700 dark:text-teal-400',
+    shadow: 'shadow-[0_2px_10px_-1px_rgba(16,185,129,0.18)] hover:shadow-[0_4px_14px_-1px_rgba(16,185,129,0.28)] dark:shadow-[0_2px_10px_-1px_rgba(16,185,129,0.28)]',
+    icon: 'text-emerald-600 dark:text-emerald-400',
     buttonHover: 'hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 text-slate-600 dark:text-slate-400 hover:text-emerald-900 dark:hover:text-emerald-100',
   },
 }

@@ -1,6 +1,7 @@
 import { render, cleanup } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AssignmentsTab } from './assignments-tab'
 import { ActivitiesTab } from './activities-tab'
 import { HolidaysTab } from './holidays-tab'
@@ -126,5 +127,30 @@ describe('Tabs Layout stability and fixed height styling', () => {
     const previewWrapper = container.querySelector('.overflow-auto')
     expect(previewWrapper).toBeInTheDocument()
     expect(previewWrapper).toHaveClass('flex-1', 'min-h-0')
+  })
+
+  it('renders Tabs segmented toggle pill control with active state pill styling', () => {
+    const { container, getByText } = render(
+      <Tabs defaultValue="assignments" className="w-full">
+        <TabsList className="h-9 p-1 bg-slate-200/70 dark:bg-slate-800/80 border border-slate-300/60 dark:border-slate-700/60 rounded-lg shadow-2xs">
+          <TabsTrigger value="assignments">Assignments</TabsTrigger>
+          <TabsTrigger value="activities">Activities</TabsTrigger>
+          <TabsTrigger value="holidays">Holidays</TabsTrigger>
+          <TabsTrigger value="preview">Preview</TabsTrigger>
+        </TabsList>
+      </Tabs>,
+    )
+
+    const list = container.querySelector('[data-slot="tabs-list"]')
+    expect(list).toBeInTheDocument()
+    expect(list).toHaveClass('bg-slate-200/70', 'rounded-lg')
+
+    const assignmentsTrigger = getByText('Assignments')
+    const activitiesTrigger = getByText('Activities')
+
+    expect(assignmentsTrigger).toHaveAttribute('data-state', 'active')
+    expect(activitiesTrigger).toHaveAttribute('data-state', 'inactive')
+    expect(assignmentsTrigger).toHaveClass('data-[state=active]:bg-background')
+    expect(assignmentsTrigger).toHaveClass('data-[state=active]:text-foreground')
   })
 })

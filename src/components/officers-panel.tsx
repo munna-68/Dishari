@@ -42,6 +42,7 @@ import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { Officer } from '@/lib/schema'
 import { getOfficerColor } from '@/lib/officer-colors'
+import { OfficerAvatar, OfficerKindBadge } from '@/components/officer-badge'
 import { cn } from '@/lib/utils'
 
 export const MAX_VISIBLE_RECENT_CHIPS = 8
@@ -257,20 +258,10 @@ export function OfficersPanel({
           <DragOverlay dropAnimation={null}>
             {activeOfficer ? (
               <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-card p-2.5 shadow-xl ring-2 ring-primary/40 cursor-grabbing pointer-events-none select-none opacity-95">
-                <span
-                  aria-hidden
-                  className={cn(
-                    'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold border transition-colors',
-                    getOfficerColor(activeOfficer.id).avatarBg,
-                    getOfficerColor(activeOfficer.id).avatarText,
-                    getOfficerColor(activeOfficer.id).avatarBorder,
-                    activeOfficer.crossedOut && 'line-through',
-                  )}
-                >
-                  {initials(activeOfficer.name)}
-                </span>
+                <OfficerAvatar officer={activeOfficer} crossedOut={activeOfficer.crossedOut} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{activeOfficer.name}</p>
+                  <OfficerKindBadge kind={activeOfficer.kind} size="sm" className="mt-0.5" />
                 </div>
               </div>
             ) : null}
@@ -401,8 +392,6 @@ function OfficerCard({
     setIsEditing(false)
   }
 
-  const officerColor = getOfficerColor(officer.id)
-
   return (
     <div
       ref={setNodeRef}
@@ -414,18 +403,7 @@ function OfficerCard({
         isSelected && 'ring-2 ring-primary/50 border-primary/50',
       )}
     >
-      <span
-        aria-hidden
-        className={cn(
-          'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold border transition-colors',
-          officerColor.avatarBg,
-          officerColor.avatarText,
-          officerColor.avatarBorder,
-          officer.crossedOut && 'line-through opacity-70',
-        )}
-      >
-        {initials(officer.name)}
-      </span>
+      <OfficerAvatar officer={officer} crossedOut={officer.crossedOut} />
 
       <div className="min-w-0 flex-1">
         {isEditing ? (
@@ -458,22 +436,7 @@ function OfficerCard({
             {officer.name}
           </button>
         )}
-        <div className="mt-1 flex flex-wrap items-center gap-1.5">
-          {officer.kind === 'permanent' ? (
-            <span className="inline-flex items-center rounded-full border border-emerald-200/70 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
-              Permanent
-            </span>
-          ) : (
-            <span className="inline-flex items-center rounded-full border border-sky-200/70 bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:border-sky-800/50 dark:bg-sky-950/40 dark:text-sky-300">
-              Temporary
-            </span>
-          )}
-          {officer.crossedOut ? (
-            <span className="inline-flex items-center rounded-full border border-amber-300/70 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-300">
-              Left out of table
-            </span>
-          ) : null}
-        </div>
+        <OfficerKindBadge kind={officer.kind} crossedOut={officer.crossedOut} className="mt-1" />
       </div>
 
       <div className="flex shrink-0 items-center gap-0.5">
@@ -800,8 +763,10 @@ function RecentChip({
   onAdd: (name: string) => void
   onDismiss: () => void
 }) {
+  const oColor = getOfficerColor(name)
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border bg-secondary py-0.5 pr-0.5 pl-2 text-xs">
+    <span className="inline-flex items-center gap-1.5 rounded-full border bg-secondary py-0.5 pr-0.5 pl-2 text-xs">
+      <span className={cn('size-1.5 rounded-full shrink-0', oColor.dotBg)} aria-hidden />
       <button
         type="button"
         onClick={() => onAdd(name)}
@@ -855,12 +820,4 @@ function RosterChip({
 
 function countText(permanent: number, temporary: number): string {
   return `${permanent} permanent, ${temporary} temporary`
-}
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return '?'
-  const first = parts[0]?.[0] ?? ''
-  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : ''
-  return (first + last).toUpperCase()
 }

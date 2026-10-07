@@ -58,7 +58,7 @@ export function PlannerWorkspace() {
   const [selectedOfficerId, setSelectedOfficerId] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
-  const [importSeed, setImportSeed] = useState('')
+  const [importPrompt, setImportPrompt] = useState('')
   const [isBusy, setIsBusy] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
     document.documentElement.classList.contains('dark') ? 'dark' : 'light',
@@ -124,8 +124,8 @@ export function PlannerWorkspace() {
     })()
   }, [documentModel])
 
-  function openImport(seed: string) {
-    setImportSeed(seed)
+  function openImport(prompt?: string) {
+    setImportPrompt(prompt ?? '')
     setImportOpen(true)
   }
 
@@ -325,11 +325,11 @@ export function PlannerWorkspace() {
             </div>
 
             <Tabs defaultValue="assignments" className="w-full">
-              <TabsList>
-                <TabsTrigger value="assignments">Assignments</TabsTrigger>
-                <TabsTrigger value="activities">Activities</TabsTrigger>
-                <TabsTrigger value="holidays">Holidays</TabsTrigger>
-                <TabsTrigger value="preview">Preview</TabsTrigger>
+              <TabsList className="h-9 p-1 bg-slate-200/70 dark:bg-slate-800/80 border border-slate-300/60 dark:border-slate-700/60 rounded-lg shadow-2xs">
+                <TabsTrigger value="assignments" className="px-3.5 py-1 text-xs sm:text-sm font-medium">Assignments</TabsTrigger>
+                <TabsTrigger value="activities" className="px-3.5 py-1 text-xs sm:text-sm font-medium">Activities</TabsTrigger>
+                <TabsTrigger value="holidays" className="px-3.5 py-1 text-xs sm:text-sm font-medium">Holidays</TabsTrigger>
+                <TabsTrigger value="preview" className="px-3.5 py-1 text-xs sm:text-sm font-medium">Preview</TabsTrigger>
               </TabsList>
 
               <TabsContent value="assignments" className="mt-3 h-[42rem] min-h-[42rem] w-full">
@@ -377,6 +377,8 @@ export function PlannerWorkspace() {
                   onUpdate={(index, text) => run({ type: 'month/activity/update', monthKey, index, text })}
                   onRemove={(index) => run({ type: 'month/activity/remove', monthKey, index }, { undo: true, undoLabel: 'Undo delete' })}
                   onMove={(from, to) => run({ type: 'month/activity/move', monthKey, from, to })}
+                  onSwap={(from, to) => run({ type: 'month/activity/swap', monthKey, from, to })}
+                  onSave={(activities) => run({ type: 'month/activity/setAll', monthKey, activities })}
                   onCopyPrevious={() => run({ type: 'month/activity/copyPrevious', monthKey, fromMonthKey: previousMonthKey })}
                 />
               </TabsContent>
@@ -417,7 +419,7 @@ export function PlannerWorkspace() {
       <HolidayImportDialog
         open={importOpen}
         onOpenChange={setImportOpen}
-        initialText={importSeed}
+        prompt={importPrompt}
         onApply={(rows: ParsedHolidayRow[]) => run({ type: 'holidays/import', rows })}
       />
     </div>

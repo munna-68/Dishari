@@ -106,7 +106,7 @@ export function DayCell({
       {selectedOfficerId ? (
         // When a specific officer is selected in sidebar/filter
         selectedAssignment ? (() => {
-          const oColor = getOfficerColor(selectedAssignment.officer.id)
+          const oColor = getOfficerColor(selectedAssignment.officer)
           return (
             <div className="mt-auto flex items-center justify-between gap-1 pt-1">
               <span

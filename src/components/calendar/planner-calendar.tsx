@@ -30,6 +30,7 @@ import { printableOfficers } from '@/lib/document-model'
 import { getAssignmentsForDay, shiftDateByWorkingDays } from '@/lib/schedule-ops'
 import { defaultSettings, type AppSettings, type MonthSchedule, type WindowKey } from '@/lib/schema'
 import { getOfficerColor } from '@/lib/officer-colors'
+import { OfficerKindBadge } from '@/components/officer-badge'
 import { cn } from '@/lib/utils'
 import type { HolidayContext } from '@/lib/working-days'
 import { holidayLabel, isToday, resolveDayStatus } from '@/lib/working-days'
@@ -173,12 +174,13 @@ export function PlannerCalendar({
                     All officers ({activeOfficers.length})
                   </SelectItem>
                   {activeOfficers.map((officer) => {
-                    const oColor = getOfficerColor(officer.id, activeOfficers)
+                    const oColor = getOfficerColor(officer)
                     return (
                       <SelectItem key={officer.id} value={officer.id} className="text-xs">
                         <span className="flex items-center gap-1.5">
                           <span className={cn('size-2 rounded-full shrink-0', oColor.dotBg)} aria-hidden />
-                          <span>{officer.name} {officer.kind === 'temporary' ? '(Temp)' : ''}</span>
+                          <span>{officer.name}</span>
+                          <OfficerKindBadge kind={officer.kind} size="sm" />
                         </span>
                       </SelectItem>
                     )

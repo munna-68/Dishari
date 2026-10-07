@@ -81,6 +81,8 @@ export type PlannerAction =
   | { type: 'month/activity/update'; monthKey: string; index: number; text: string }
   | { type: 'month/activity/remove'; monthKey: string; index: number }
   | { type: 'month/activity/move'; monthKey: string; from: number; to: number }
+  | { type: 'month/activity/swap'; monthKey: string; from: number; to: number }
+  | { type: 'month/activity/setAll'; monthKey: string; activities: string[] }
   | { type: 'month/activity/copyPrevious'; monthKey: string; fromMonthKey: string }
   | { type: 'planner/replace'; state: PlannerState }
 
@@ -671,6 +673,24 @@ export function reduce(state: PlannerState, action: PlannerAction): ActionResult
         message: null,
       }
 
+    case 'month/activity/swap':
+      return {
+        state: withMonth(ensureMonthState(state, action.monthKey), action.monthKey, (schedule) => ({
+          ...schedule,
+          activities: swapItems(schedule.activities, action.from, action.to),
+        })),
+        message: null,
+      }
+
+    case 'month/activity/setAll':
+      return {
+        state: withMonth(ensureMonthState(state, action.monthKey), action.monthKey, (schedule) => ({
+          ...schedule,
+          activities: [...action.activities],
+        })),
+        message: 'Activities updated.',
+      }
+
     case 'month/activity/copyPrevious': {
       const fromKey = action.fromMonthKey
       const source = state.months[fromKey]
@@ -751,5 +771,16 @@ function moveItem<T>(items: T[], from: number, to: number): T[] {
   const [item] = next.splice(from, 1)
   if (item === undefined) return items
   next.splice(to, 0, item)
+  return next
+}
+
+function swapItems<T>(items: T[], from: number, to: number): T[] {
+  if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return items
+  const next = [...items]
+  const fromItem = next[from]
+  const toItem = next[to]
+  if (fromItem === undefined || toItem === undefined) return items
+  next[from] = toItem
+  next[to] = fromItem
   return next
 }

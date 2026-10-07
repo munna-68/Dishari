@@ -16,12 +16,15 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { WEEKDAY_LONG, monthIsoDays, parseMonthKey } from '@/lib/date'
+import { MONTH_NAMES, WEEKDAY_LONG, monthIsoDays, parseMonthKey } from '@/lib/date'
 import { buildHolidayPrompt, describePromptScope, type PromptScope } from '@/lib/holidays'
 import { cn } from '@/lib/utils'
 import type { HolidayState } from '@/lib/working-days'
@@ -45,7 +48,12 @@ export function HolidaysTab({
   onClearImportedInMonth,
   className,
 }: HolidaysTabProps) {
-  const [scopeKind, setScopeKind] = useState<'month' | 'year'>('month')
+  const [selectedScope, setSelectedScope] = useState<string>('current')
+  const [lastMonthKey, setLastMonthKey] = useState(monthKey)
+  if (monthKey !== lastMonthKey) {
+    setLastMonthKey(monthKey)
+    setSelectedScope('current')
+  }
 
   const parts = parseMonthKey(monthKey)
   const year = parts?.year ?? 0
@@ -56,7 +64,16 @@ export function HolidaysTab({
     .filter((entry) => entry.holiday !== undefined)
     .sort((a, b) => a.iso.localeCompare(b.iso))
 
-  const scope: PromptScope = { kind: scopeKind, year, month }
+  let scope: PromptScope = { kind: 'month', year, month }
+  if (selectedScope === 'year') {
+    scope = { kind: 'year', year, month }
+  } else if (selectedScope.startsWith('month-')) {
+    const targetMonth = parseInt(selectedScope.replace('month-', ''), 10)
+    if (!Number.isNaN(targetMonth) && targetMonth >= 1 && targetMonth <= 12) {
+      scope = { kind: 'month', year, month: targetMonth }
+    }
+  }
+
   const prompt = buildHolidayPrompt(scope)
   const [promptToCopy, setPromptToCopy] = useState<string | null>(null)
 
@@ -95,13 +112,27 @@ export function HolidaysTab({
               <label htmlFor="holiday-scope" className="text-xs text-muted-foreground">
                 Fetch holidays for
               </label>
-              <Select value={scopeKind} onValueChange={(value) => setScopeKind(value === 'year' ? 'year' : 'month')}>
-                <SelectTrigger id="holiday-scope" className="w-44">
+              <Select value={selectedScope} onValueChange={setSelectedScope}>
+                <SelectTrigger id="holiday-scope" className="w-56">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="month">This month only</SelectItem>
-                  <SelectItem value="year">The whole year</SelectItem>
+                <SelectContent className="max-h-80">
+                  <SelectGroup>
+                    <SelectItem value="current">This month ({MONTH_NAMES[month - 1]})</SelectItem>
+                    <SelectItem value="year">The whole year ({year})</SelectItem>
+                  </SelectGroup>
+                  <SelectSeparator />
+                  <SelectGroup>
+                    <SelectLabel>Months in {year}</SelectLabel>
+                    {MONTH_NAMES.map((name, index) => {
+                      const monthNum = index + 1
+                      return (
+                        <SelectItem key={monthNum} value={`month-${monthNum}`}>
+                          {name} {year}
+                        </SelectItem>
+                      )
+                    })}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>

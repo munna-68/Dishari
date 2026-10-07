@@ -173,7 +173,7 @@ export const OFFICER_COLOR_PALETTE: OfficerColorTheme[] = [
   },
 ]
 
-const CANONICAL_OFFICER_ROSTER: Record<string, number> = {
+export const CANONICAL_OFFICER_ROSTER: Record<string, number> = {
   // 0: Blue - Moynul / Moyen Uddin
   'moyen-uddin': 0,
   'moyen uddin': 0,
@@ -209,6 +209,27 @@ const CANONICAL_OFFICER_ROSTER: Record<string, number> = {
   'md-laku-mia': 8,
   'md. laku mia': 8,
   'md laku mia': 8,
+  // 9: Violet - Maydul Islam
+  'maydul-islam': 9,
+  'maydul islam': 9,
+  // 10: Orange - Iftekharul Islam
+  'iftekharul-islam': 10,
+  'iftekharul islam': 10,
+}
+
+export function normalizeOfficerKey(input: string): string {
+  let cleaned = input.trim().toLowerCase()
+  // Strip common ID prefixes like "p-0-", "t-1-", "p-", "t-"
+  cleaned = cleaned.replace(/^[pt]-\d+-/, '')
+  cleaned = cleaned.replace(/[.\-_]/g, ' ').replace(/\s+/g, ' ').trim()
+  return cleaned
+}
+
+export function slugifyOfficerKey(input: string): string {
+  let cleaned = input.trim().toLowerCase()
+  cleaned = cleaned.replace(/^[pt]-\d+-/, '')
+  cleaned = cleaned.replace(/[.\s_]+/g, '-').replace(/^-|-$/g, '')
+  return cleaned
 }
 
 function hashString(str: string): number {
@@ -220,17 +241,72 @@ function hashString(str: string): number {
 }
 
 export function getOfficerColor(
-  officerIdOrIndex: string | number,
+  officerOrNameOrId:
+    | string
+    | number
+    | { id?: string; name?: string; crossedOut?: boolean; kind?: string }
+    | null
+    | undefined,
   officersList?: Array<{ id: string; name?: string }>,
 ): OfficerColorTheme {
-  if (typeof officerIdOrIndex === 'number') {
-    const idx = Math.abs(officerIdOrIndex) % OFFICER_COLOR_PALETTE.length
+  if (typeof officerOrNameOrId === 'number') {
+    const idx = Math.abs(officerOrNameOrId) % OFFICER_COLOR_PALETTE.length
     return OFFICER_COLOR_PALETTE[idx]!
   }
 
-  // 1. Check canonical roster mapping by ID, slug, or name
-  const normKey = officerIdOrIndex.trim().toLowerCase().replace(/[.\-_]/g, ' ').replace(/\s+/g, ' ')
-  const slugKey = officerIdOrIndex.trim().toLowerCase().replace(/[.\s_]/g, '-')
+  if (!officerOrNameOrId) {
+    return OFFICER_COLOR_PALETTE[0]!
+  }
+
+  // 1. If passed an Officer object, resolve primarily by their name
+  if (typeof officerOrNameOrId === 'object') {
+    if (officerOrNameOrId.name && officerOrNameOrId.name.trim() !== '') {
+      return getOfficerColor(officerOrNameOrId.name, officersList)
+    }
+    if (officerOrNameOrId.id) {
+      return getOfficerColor(officerOrNameOrId.id, officersList)
+    }
+    return OFFICER_COLOR_PALETTE[0]!
+  }
+
+  const rawKey = String(officerOrNameOrId).trim()
+
+  // 2. If officersList is provided, find officer to get their name or preserve positional fallback
+  if (officersList && officersList.length > 0) {
+    const foundIndex = officersList.findIndex(
+      (o) => o.id === rawKey || o.name?.trim().toLowerCase() === rawKey.toLowerCase(),
+    )
+    if (foundIndex >= 0) {
+      const officerObj = officersList[foundIndex]
+      if (officerObj?.name && officerObj.name.trim() !== '') {
+        const norm = normalizeOfficerKey(officerObj.name)
+        const slug = slugifyOfficerKey(officerObj.name)
+        if (CANONICAL_OFFICER_ROSTER[norm] !== undefined) {
+          return OFFICER_COLOR_PALETTE[CANONICAL_OFFICER_ROSTER[norm]!]!
+        }
+        if (CANONICAL_OFFICER_ROSTER[slug] !== undefined) {
+          return OFFICER_COLOR_PALETTE[CANONICAL_OFFICER_ROSTER[slug]!]!
+        }
+        const hash = hashString(norm)
+        return OFFICER_COLOR_PALETTE[hash % OFFICER_COLOR_PALETTE.length]!
+      }
+      // If the object in list had no name (only id), check if id matches canonical
+      const normRaw = normalizeOfficerKey(rawKey)
+      const slugRaw = slugifyOfficerKey(rawKey)
+      if (CANONICAL_OFFICER_ROSTER[normRaw] !== undefined) {
+        return OFFICER_COLOR_PALETTE[CANONICAL_OFFICER_ROSTER[normRaw]!]!
+      }
+      if (CANONICAL_OFFICER_ROSTER[slugRaw] !== undefined) {
+        return OFFICER_COLOR_PALETTE[CANONICAL_OFFICER_ROSTER[slugRaw]!]!
+      }
+      return OFFICER_COLOR_PALETTE[foundIndex % OFFICER_COLOR_PALETTE.length]!
+    }
+  }
+
+  // 3. Check canonical roster mapping by ID, slug, or name (after stripping prefixes)
+  const normKey = normalizeOfficerKey(rawKey)
+  const slugKey = slugifyOfficerKey(rawKey)
+
   if (CANONICAL_OFFICER_ROSTER[normKey] !== undefined) {
     return OFFICER_COLOR_PALETTE[CANONICAL_OFFICER_ROSTER[normKey]!]!
   }
@@ -238,26 +314,8 @@ export function getOfficerColor(
     return OFFICER_COLOR_PALETTE[CANONICAL_OFFICER_ROSTER[slugKey]!]!
   }
 
-  // 2. If officersList is provided, find officer and check their name or position
-  if (officersList && officersList.length > 0) {
-    const foundIndex = officersList.findIndex((o) => o.id === officerIdOrIndex)
-    if (foundIndex >= 0) {
-      const officerObj = officersList[foundIndex]
-      if (officerObj?.name) {
-        const objNorm = officerObj.name.trim().toLowerCase().replace(/[.\-_]/g, ' ').replace(/\s+/g, ' ')
-        const objSlug = officerObj.name.trim().toLowerCase().replace(/[.\s_]/g, '-')
-        if (CANONICAL_OFFICER_ROSTER[objNorm] !== undefined) {
-          return OFFICER_COLOR_PALETTE[CANONICAL_OFFICER_ROSTER[objNorm]!]!
-        }
-        if (CANONICAL_OFFICER_ROSTER[objSlug] !== undefined) {
-          return OFFICER_COLOR_PALETTE[CANONICAL_OFFICER_ROSTER[objSlug]!]!
-        }
-      }
-      return OFFICER_COLOR_PALETTE[foundIndex % OFFICER_COLOR_PALETTE.length]!
-    }
-  }
-
-  const hash = hashString(officerIdOrIndex)
+  // 4. Deterministic hash of the normalized name
+  const hash = hashString(normKey || rawKey)
   return OFFICER_COLOR_PALETTE[hash % OFFICER_COLOR_PALETTE.length]!
 }
 
@@ -314,13 +372,12 @@ export const NEUTRAL_BRANCH_ACCENT: BranchAccentTheme = {
 }
 
 export function getBranchAccent(
-  branch: string,
+  _branch: string,
   windowKey: 'one' | 'two',
   _rowIndex?: number,
 ): BranchAccentTheme {
-  if (!branch || branch.trim() === '') {
-    return NEUTRAL_BRANCH_ACCENT
-  }
+  // Correlate directly with the visit window so columns have unified semantic themes,
+  // ensuring even empty branch slots preserve the window accent border and colored shadow.
   return windowKey === 'one' ? WINDOW_ONE_BRANCH_ACCENT : WINDOW_TWO_BRANCH_ACCENT
 }
 

@@ -240,13 +240,23 @@ describe('AssignmentsTab - Fixed width layout and input experience', () => {
     expect(screen.getByText('Window 1 branch')).toBeInTheDocument()
     expect(screen.getByText('Window 2 branch')).toBeInTheDocument()
 
-    // Window 1 branch card has blue accent
-    const w1BranchCard = container.querySelector('[aria-label="Branch for window 1"]')?.closest('div.rounded-xl')
-    expect(w1BranchCard).toHaveClass('border-l-blue-500')
+    // Window 1 branch cards (both filled and empty) have blue accent
+    const allW1Cards = container.querySelectorAll('[aria-label="Branch for window 1"]')
+    expect(allW1Cards.length).toBeGreaterThanOrEqual(2)
+    allW1Cards.forEach((el) => {
+      const card = el.closest('div.rounded-xl')
+      expect(card).toHaveClass('border-l-blue-500')
+      expect(card?.className).toContain('rgba(59,130,246')
+    })
 
-    // Window 2 branch card has emerald accent
-    const w2BranchCard = container.querySelector('[aria-label="Branch for window 2"]')?.closest('div.rounded-xl')
-    expect(w2BranchCard).toHaveClass('border-l-emerald-500')
+    // Window 2 branch cards (both filled and empty) have emerald accent
+    const allW2Cards = container.querySelectorAll('[aria-label="Branch for window 2"]')
+    expect(allW2Cards.length).toBeGreaterThanOrEqual(2)
+    allW2Cards.forEach((el) => {
+      const card = el.closest('div.rounded-xl')
+      expect(card).toHaveClass('border-l-emerald-500')
+      expect(card?.className).toContain('rgba(16,185,129')
+    })
 
     // Window 1 dates card has blue background styling
     const dateCards = container.querySelectorAll('td div.rounded-xl')

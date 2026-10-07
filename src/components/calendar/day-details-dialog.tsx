@@ -50,6 +50,7 @@ import { cn } from '@/lib/utils'
 import type { HolidayContext } from '@/lib/working-days'
 import { holidayLabel, isToday, resolveDayStatus } from '@/lib/working-days'
 import { getOfficerColor } from '@/lib/officer-colors'
+import { OfficerAvatar, OfficerKindBadge } from '@/components/officer-badge'
 
 const QUICK_BRANCHES = ['Issue-Based Monitoring', 'Special Visit at']
 
@@ -67,14 +68,6 @@ export interface DayDetailsDialogProps {
   onSwapBranches?: (windowKey: WindowKey, fromId: string, toId: string) => void
   onFollowWindow?: (officerId: string, windowKey: WindowKey) => void
   onToggleDay: (iso: string) => void
-}
-
-function officerInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return '?'
-  const first = parts[0]?.[0] ?? ''
-  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : ''
-  return (first + last).toUpperCase()
 }
 
 export function DayDetailsDialog({
@@ -433,12 +426,13 @@ export function DayDetailsDialog({
                       </SelectTrigger>
                       <SelectContent>
                         {unassignedOfficers.map((o) => {
-                          const oColor = getOfficerColor(o.id, allActiveOfficers)
+                          const oColor = getOfficerColor(o)
                           return (
                             <SelectItem key={o.id} value={o.id} className="text-xs">
                               <span className="flex items-center gap-1.5">
                                 <span className={cn('size-2 rounded-full shrink-0', oColor.dotBg)} aria-hidden />
-                                <span>{o.name} {o.kind === 'temporary' ? '(Temp)' : ''}</span>
+                                <span>{o.name}</span>
+                                <OfficerKindBadge kind={o.kind} size="sm" />
                               </span>
                             </SelectItem>
                           )
@@ -665,8 +659,6 @@ function OfficerAssignmentRow({
   )
 
 
-  const officerColor = getOfficerColor(assignment.officer.id, allOfficersInWindow)
-
   return (
     <div
       className={cn(
@@ -677,26 +669,13 @@ function OfficerAssignmentRow({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Officer name & window */}
         <div className="flex items-center gap-2.5 min-w-[210px]">
-          <div
-            className={cn(
-              'flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold border transition-colors',
-              officerColor.avatarBg,
-              officerColor.avatarText,
-              officerColor.avatarBorder,
-            )}
-          >
-            {officerInitials(assignment.officer.name)}
-          </div>
+          <OfficerAvatar officer={assignment.officer} size="sm" />
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-semibold text-foreground truncate">
                 {assignment.officer.name}
               </span>
-              {assignment.officer.kind === 'temporary' ? (
-                <Badge variant="outline" className="px-1 py-0 text-[9px]">
-                  Temp
-                </Badge>
-              ) : null}
+              <OfficerKindBadge kind={assignment.officer.kind} size="sm" />
             </div>
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <Badge
