@@ -46,7 +46,6 @@ export function PlannerWorkspace() {
     isCollapsed: isLeftPanelCollapsed,
     isDragging: isLeftPanelDragging,
     setIsCollapsed: setIsLeftPanelCollapsed,
-    toggleCollapsed: toggleLeftPanelCollapsed,
     handlePointerDown: handleResizePointerDown,
     handlePointerMove: handleResizePointerMove,
     handlePointerUp: handleResizePointerUp,
@@ -145,8 +144,6 @@ export function PlannerWorkspace() {
         isBusy={isBusy}
         theme={theme}
         exportBlockers={exportBlockers}
-        isOfficersPanelCollapsed={isLeftPanelCollapsed}
-        onToggleOfficersPanel={toggleLeftPanelCollapsed}
         onPreviousMonth={planner.goToPreviousMonth}
         onNextMonth={planner.goToNextMonth}
         onMonthChange={setMonthKey}

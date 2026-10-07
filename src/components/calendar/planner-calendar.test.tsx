@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { DayCell } from './day-cell'
 import { PlannerCalendar } from './planner-calendar'
 import type { MonthSchedule } from '@/lib/schema'
 import { emptyHolidayContext } from '@/lib/working-days'
@@ -57,6 +58,17 @@ describe('PlannerCalendar band segmentation', () => {
     // Verify day cell does not have the old static top window stripe
     const staticStripes = container.querySelectorAll('.pointer-events-none.absolute.inset-x-0.top-0.h-1')
     expect(staticStripes.length).toBe(0)
+
+    // Window edge handles use proper horizontal slider thumb affordance and stay within row
+    const edgeHandles = container.querySelectorAll('[aria-label*="Move the start of"], [aria-label*="Move the end of"]')
+    expect(edgeHandles.length).toBeGreaterThan(0)
+    for (const handle of edgeHandles) {
+      expect(handle).toHaveClass('cursor-ew-resize')
+      expect(handle).not.toHaveClass('-translate-y-1/2')
+      const thumb = handle.querySelector('span.rounded-full')
+      expect(thumb).toBeInTheDocument()
+      expect(thumb).toHaveClass('shadow-xs')
+    }
   })
 
   it('renders weekly off days and window band segments muted and desaturated inside visit window', () => {
@@ -147,9 +159,8 @@ describe('PlannerCalendar officer assignments & Google Calendar modal', () => {
     // The cell body is NOT crowded with full officer names
     expect(cellOct4).not.toHaveTextContent('Md. Nuruzzaman')
 
-    // But it has a clear indication that 2 officers are scheduled and clicking expands details
+    // But it has a clear indication that 2 officers are scheduled
     expect(cellOct4).toHaveTextContent('2 officers')
-    expect(cellOct4).toHaveTextContent('Details')
   })
 
   it('clicking a day cell opens the details modal with editable information and navigation', () => {
@@ -230,5 +241,149 @@ describe('PlannerCalendar officer assignments & Google Calendar modal', () => {
     expect(cellOct4).toHaveTextContent('Lalmonirhat')
     // Should NOT show off-2's branch directly
     expect(cellOct4).not.toHaveTextContent('Rangpur')
+  })
+
+  it('allows browsing and selecting branches via the chevron dropdown for any officer row', () => {
+    const onSetBranch = vi.fn()
+
+    const { container } = render(
+      <TooltipProvider>
+        <PlannerCalendar
+          monthKey="2026-10"
+          context={dummyContext}
+          windows={scheduleWithOfficers.windows}
+          schedule={scheduleWithOfficers}
+          selectedOfficerId={null}
+          onToggleDay={vi.fn()}
+          onMoveWindowEdge={vi.fn()}
+          onShiftWindow={vi.fn()}
+          onSetBranch={onSetBranch}
+        />
+      </TooltipProvider>,
+    )
+
+    // Open Oct 4 details
+    const cellOct4 = container.querySelector('[data-date="2026-10-04"]') as HTMLElement
+    fireEvent.click(cellOct4)
+
+    // Find the dropdown chevron toggle for the 2nd officer (Md. Nuruzzaman)
+    const browseButtons = screen.getAllByTitle('Browse branch options')
+    expect(browseButtons.length).toBe(2)
+
+    // Click dropdown for Md. Nuruzzaman (index 1)
+    fireEvent.click(browseButtons[1]!)
+
+    // Popover content should be open with Quick Actions
+    expect(screen.getByText('+ Issue-Based Monitoring')).toBeInTheDocument()
+
+    // Click "+ Issue-Based Monitoring"
+    fireEvent.click(screen.getByText('+ Issue-Based Monitoring'))
+    expect(onSetBranch).toHaveBeenCalledWith('off-2', 'one', 'Issue-Based Monitoring')
+  })
+
+  it('provides a prominent Done button in the header to close the modal', () => {
+    const { container } = render(
+      <TooltipProvider>
+        <PlannerCalendar
+          monthKey="2026-10"
+          context={dummyContext}
+          windows={scheduleWithOfficers.windows}
+          schedule={scheduleWithOfficers}
+          selectedOfficerId={null}
+          onToggleDay={vi.fn()}
+          onMoveWindowEdge={vi.fn()}
+          onShiftWindow={vi.fn()}
+        />
+      </TooltipProvider>,
+    )
+
+    // Open dialog
+    const cellOct4 = container.querySelector('[data-date="2026-10-04"]') as HTMLElement
+    fireEvent.click(cellOct4)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    // Header Done button
+    const doneButton = screen.getByRole('button', { name: /^Done$/i })
+    expect(doneButton).toBeInTheDocument()
+
+    // Click Done button
+    fireEvent.click(doneButton)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('toggles the Dates button between stages to show and hide custom date range inputs', () => {
+    const { container } = render(
+      <TooltipProvider>
+        <PlannerCalendar
+          monthKey="2026-10"
+          context={dummyContext}
+          windows={scheduleWithOfficers.windows}
+          schedule={scheduleWithOfficers}
+          selectedOfficerId={null}
+          onToggleDay={vi.fn()}
+          onMoveWindowEdge={vi.fn()}
+          onShiftWindow={vi.fn()}
+        />
+      </TooltipProvider>,
+    )
+
+    // Open dialog
+    const cellOct4 = container.querySelector('[data-date="2026-10-04"]') as HTMLElement
+    fireEvent.click(cellOct4)
+
+    // Find Dates toggle buttons
+    const datesButtons = screen.getAllByRole('button', { name: /Dates/i })
+    expect(datesButtons.length).toBeGreaterThan(0)
+
+    // Initially custom date inputs are hidden
+    expect(screen.queryByText('Start date')).not.toBeInTheDocument()
+
+    // Click Dates button (stage 1: toggle open)
+    fireEvent.click(datesButtons[0]!)
+    expect(screen.getByText('Start date')).toBeInTheDocument()
+    expect(screen.getByText('End date')).toBeInTheDocument()
+
+    // Click Dates button again (stage 2: toggle closed)
+    fireEvent.click(datesButtons[0]!)
+    expect(screen.queryByText('Start date')).not.toBeInTheDocument()
+  })
+
+  it('renders Today cell with clean inset styling without ring offset gap and places Today badge at top with date number', () => {
+    const { container } = render(
+      <TooltipProvider>
+        <DayCell
+          iso="2026-10-07"
+          date={7}
+          inMonth={true}
+          status={{ kind: 'working' }}
+          holidayName={null}
+          bengaliName={null}
+          isToday={true}
+          inWindowOne={true}
+          inWindowTwo={false}
+          isOfficerRange={false}
+          assignments={[]}
+          onClick={vi.fn()}
+        />
+      </TooltipProvider>,
+    )
+
+    const cell = container.querySelector('[data-date="2026-10-07"]')
+    expect(cell).toBeInTheDocument()
+
+    // Must use ring-inset so that there is no offset gap between border and window bands
+    expect(cell).toHaveClass('ring-inset')
+    expect(cell).not.toHaveClass('ring-offset-1')
+    expect(cell).not.toHaveClass('ring-offset-background')
+
+    // Today badge must be in the top row alongside the date number
+    const todayBadge = screen.getByText('Today')
+    expect(todayBadge).toBeInTheDocument()
+    expect(todayBadge).not.toHaveClass('bottom-1', 'right-1', 'absolute')
+
+    // Top date container has both the date number and Today badge
+    const topRow = cell?.firstElementChild
+    expect(topRow).toHaveTextContent('7')
+    expect(topRow).toHaveTextContent('Today')
   })
 })

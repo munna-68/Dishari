@@ -474,16 +474,24 @@ function WindowHandle({
           tabIndex={0}
           aria-label={label}
           className={cn(
-            'pointer-events-auto absolute top-0 z-20 flex h-5 w-4 -translate-y-1/2 cursor-ew-resize touch-none items-center justify-center rounded-sm',
+            'pointer-events-auto absolute top-0 z-20 flex h-3.5 w-3.5 cursor-ew-resize touch-none items-center justify-center transition-transform hover:scale-125',
             'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-            dragging && 'ring-2 ring-foreground',
+            dragging && 'scale-125 ring-2 ring-foreground',
           )}
-          style={{ [side]: '-2px', transform: CSS.Translate.toString(transform) }}
+          style={{ [side]: 0, transform: CSS.Translate.toString(transform) }}
         >
-          <span className={cn('h-4 w-1.5 rounded-full ring-1 ring-background', colour)} />
+          <span
+            className={cn(
+              'size-2.5 rounded-full ring-2 ring-background shadow-xs transition-colors',
+              colour,
+            )}
+          />
         </div>
       </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent>
+        <p className="font-medium">{label}</p>
+        <p className="text-xs opacity-70">Drag left or right to move this edge.</p>
+      </TooltipContent>
     </Tooltip>
   )
 }

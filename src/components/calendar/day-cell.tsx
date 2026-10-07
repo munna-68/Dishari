@@ -1,6 +1,7 @@
 import { ArrowUpRight } from 'lucide-react'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { fromIso } from '@/lib/date'
 import type { OfficerDayAssignment } from '@/lib/schedule-ops'
 import { cn } from '@/lib/utils'
 import type { DayStatus } from '@/lib/working-days'
@@ -52,7 +53,7 @@ export function DayCell({
       role="button"
       tabIndex={0}
       data-date={iso}
-      aria-label={describeDay(iso, status, holidayName, assignments.length)}
+      aria-label={describeDay(iso, status, holidayName, bengaliName, assignments.length)}
       className={cellClasses(status, inMonth, inWindowOne, inWindowTwo, isOfficerRange, isToday)}
       onClick={onClick}
       onKeyDown={(e) => {
@@ -64,19 +65,26 @@ export function DayCell({
     >
       {/* Top row: Date number, Today badge, Holiday/Override badge */}
       <div className="flex items-center justify-between gap-1 w-full">
-        <span
-          className={cn(
-            'text-xs font-semibold tabular-nums sm:text-sm',
-            isToday &&
-              'inline-flex size-5 items-center justify-center rounded-full bg-foreground text-background text-[11px] font-bold',
-            !inMonth && 'opacity-50',
-          )}
-        >
-          {date}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span
+            className={cn(
+              'text-xs font-semibold tabular-nums sm:text-sm',
+              isToday &&
+                'inline-flex size-5 items-center justify-center rounded-full bg-foreground text-background text-[11px] font-bold shadow-xs',
+              !inMonth && 'opacity-50',
+            )}
+          >
+            {date}
+          </span>
+          {isToday ? (
+            <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-foreground uppercase leading-none">
+              Today
+            </span>
+          ) : null}
+        </div>
 
         {isHoliday && holidayName ? (
-          <span className="line-clamp-1 max-w-[75%] rounded bg-holiday/15 px-1 py-0.5 text-[9px] sm:text-[10px] font-medium leading-none text-holiday">
+          <span className="line-clamp-1 max-w-[65%] rounded bg-holiday/15 px-1 py-0.5 text-[9px] sm:text-[10px] font-medium leading-none text-holiday">
             {holidayName}
           </span>
         ) : null}
@@ -143,7 +151,7 @@ export function DayCell({
             </span>
 
             <span className="text-[10px] font-medium text-muted-foreground/0 group-hover/cell:text-muted-foreground transition-all flex items-center gap-0.5 shrink-0">
-              <span className="hidden xl:inline">Details</span>
+              <span>Details</span>
               <ArrowUpRight className="size-3" />
             </span>
           </div>
@@ -167,34 +175,60 @@ export function DayCell({
       {status.kind === 'override' ? (
         <span className="absolute right-1 bottom-1 size-1.5 rounded-full bg-window-one ring-1 ring-background" />
       ) : null}
-      {isToday ? (
-        <span className="absolute bottom-1 right-1 text-[8px] font-semibold tracking-wide uppercase opacity-70">
-          Today
-        </span>
-      ) : null}
     </div>
   )
 
-  if (!holidayName && status.kind !== 'override' && assignments.length === 0) return body
+  const parsedDate = fromIso(iso)
+  const dayFullTitle = parsedDate
+    ? new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).format(parsedDate)
+    : iso
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>{body}</TooltipTrigger>
-      <TooltipContent>
-        <div className="space-y-0.5 text-xs max-w-56">
-          <p className="font-semibold text-foreground">
-            {holidayName ?? (status.kind === 'override' ? 'Working-day override' : (isOff ? 'Weekly off day' : 'Working day'))}
-          </p>
-          {bengaliName ? <p lang="bn" className="text-muted-foreground">{bengaliName}</p> : null}
+      <TooltipContent
+        side="top"
+        sideOffset={6}
+        className={cn(
+          'z-50 max-w-64 rounded-xl border p-3 shadow-lg select-none',
+          'bg-popover text-popover-foreground border-border/80',
+          inWindowOne && 'border-window-one/40 ring-1 ring-window-one/20',
+          inWindowTwo && 'border-window-two/40 ring-1 ring-window-two/20',
+        )}
+      >
+        <div className="space-y-1.5 text-xs">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-semibold text-foreground">
+              {dayFullTitle}
+            </span>
+            {inWindowOne ? (
+              <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold bg-window-one/15 text-window-one border border-window-one/30">
+                Window 1
+              </span>
+            ) : inWindowTwo ? (
+              <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold bg-window-two/15 text-window-two border border-window-two/30">
+                Window 2
+              </span>
+            ) : null}
+          </div>
+
+          <div>
+            <p className="font-medium text-foreground/90">
+              {holidayName ?? (status.kind === 'override' ? 'Working-Day Override' : (isOff ? 'Weekly Off Day' : 'Working Day'))}
+            </p>
+            {bengaliName ? <p lang="bn" className="text-[11px] text-muted-foreground">{bengaliName}</p> : null}
+          </div>
+
           {assignments.length > 0 ? (
             <p className="text-[11px] text-muted-foreground">
-              {assignments.length} officer{assignments.length === 1 ? '' : 's'} assigned to branch visits
+              <span className="font-semibold text-foreground">{assignments.length}</span> officer{assignments.length === 1 ? '' : 's'} assigned to branch visits
             </p>
           ) : null}
-          <p className="text-[10px] text-primary pt-0.5 font-medium flex items-center gap-1">
-            <span>Click to expand details</span>
-            <ArrowUpRight className="size-3" />
-          </p>
+
+          <div className="pt-1.5 mt-1 border-t flex items-center justify-between text-[11px] font-semibold text-primary">
+            <span>Click to view details & edit</span>
+            <ArrowUpRight className="size-3.5" />
+          </div>
         </div>
       </TooltipContent>
     </Tooltip>
@@ -211,8 +245,8 @@ function cellClasses(
 ): string {
   return cn(
     'group/cell relative flex h-full min-h-18 sm:min-h-20 flex-col gap-0.5 overflow-hidden rounded-md border p-1 text-left transition-all cursor-pointer select-none',
-    'hover:border-primary/70 hover:shadow-2xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-    isToday && 'ring-2 ring-foreground ring-offset-1 ring-offset-background',
+    'hover:border-primary/70 hover:bg-accent/20 hover:shadow-2xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+    isToday && 'ring-2 ring-inset ring-foreground/80 dark:ring-foreground',
     status.kind === 'holiday'
       ? 'border-holiday bg-holiday-soft'
       : status.kind === 'override'
@@ -240,10 +274,14 @@ function describeDay(
   iso: string,
   status: DayStatus,
   holidayName: string | null,
+  bengaliName: string | null,
   assignedCount: number,
 ): string {
   const countText = assignedCount > 0 ? `, ${assignedCount} officer(s) assigned` : ''
-  if (holidayName) return `${iso}: ${holidayName}${countText}. Click to expand information.`
+  if (holidayName) {
+    const bnText = bengaliName ? ` (${bengaliName})` : ''
+    return `${iso}: ${holidayName}${bnText}${countText}. Click to expand information.`
+  }
   switch (status.kind) {
     case 'weekly-off':
       return `${iso}: weekly off day${countText}. Click to expand information.`

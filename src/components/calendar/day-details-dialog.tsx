@@ -4,12 +4,14 @@ import {
   CalendarCheck,
   CalendarDays,
   CalendarOff,
+  Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ListTodo,
   RotateCcw,
-  Sparkles,
   Users,
+  X,
 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -18,7 +20,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -90,7 +91,6 @@ export function DayDetailsDialog({
   onFollowWindow,
   onToggleDay,
 }: DayDetailsDialogProps) {
-  const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState<'officers' | 'activities'>('officers')
 
   if (!iso) return null
@@ -118,6 +118,20 @@ export function DayDetailsDialog({
 
   const allActiveOfficers = useMemo(() => printableOfficers(schedule), [schedule])
 
+  const allKnownBranches = useMemo(() => {
+    const set = new Set<string>()
+    for (const b of settings.recentBranchNames) {
+      if (b.trim()) set.add(b.trim())
+    }
+    for (const offId of Object.keys(schedule.assignments)) {
+      for (const win of ['one', 'two'] as const) {
+        const b = schedule.assignments[offId]?.[win]?.branch?.trim()
+        if (b) set.add(b)
+      }
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [settings.recentBranchNames, schedule.assignments])
+
   // Officers not assigned on this date
   const assignedOfficerIds = useMemo(() => new Set(assignments.map((a) => a.officer.id)), [assignments])
   const unassignedOfficers = useMemo(
@@ -135,17 +149,8 @@ export function DayDetailsDialog({
         return 0
       })
     }
-    if (searchTerm.trim() !== '') {
-      const q = searchTerm.toLowerCase()
-      list = list.filter(
-        (a) =>
-          a.officer.name.toLowerCase().includes(q) ||
-          a.branch.toLowerCase().includes(q) ||
-          (a.note && a.note.toLowerCase().includes(q)),
-      )
-    }
     return list
-  }, [assignments, focusedOfficerId, searchTerm])
+  }, [assignments, focusedOfficerId])
 
   const assignedBranchesCount = assignments.filter((a) => a.branch.trim() !== '').length
 
@@ -163,10 +168,10 @@ export function DayDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[88vh] w-full sm:max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
-        {/* Header with Day Navigation (< and >) */}
+      <DialogContent showCloseButton={false} className="flex h-[85vh] max-h-[760px] w-full sm:max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
+        {/* Header with Day Navigation (< and >) and Done action */}
         <DialogHeader className="border-b px-5 pt-4 pb-3">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-1.5 min-w-0">
               {onNavigateDate ? (
                 <Button
@@ -203,6 +208,26 @@ export function DayDetailsDialog({
                   Today
                 </Badge>
               ) : null}
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                className="h-8 px-3.5 text-xs font-semibold shadow-2xs"
+                onClick={() => onOpenChange(false)}
+              >
+                Done
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="size-8 rounded-md text-muted-foreground hover:text-foreground"
+                onClick={() => onOpenChange(false)}
+                title="Close dialog"
+              >
+                <X className="size-4" />
+                <span className="sr-only">Close</span>
+              </Button>
             </div>
 
             <DialogDescription className="sr-only">
@@ -357,24 +382,10 @@ export function DayDetailsDialog({
           </div>
 
           {/* Officers Tab */}
-          <TabsContent value="officers" className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 mt-0 min-h-0">
-            {assignments.length > 4 ? (
-              <div className="flex items-center justify-between gap-2 pb-1">
-                <p className="text-xs text-muted-foreground">
-                  View and update branch assignments for {formattedDayTitle}:
-                </p>
-                <div className="w-56">
-                  <Input
-                    type="search"
-                    placeholder="Search officer or branch..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="h-7 text-xs bg-background"
-                  />
-                </div>
-              </div>
-            ) : null}
-
+          <TabsContent
+            value="officers"
+            className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 mt-0 focus-visible:outline-none data-[state=active]:animate-in data-[state=active]:fade-in-50 data-[state=active]:duration-200"
+          >
             {assignments.length === 0 ? (
               <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
                 <CalendarDays className="mx-auto mb-2 size-7 opacity-40" />
@@ -391,7 +402,7 @@ export function DayDetailsDialog({
                     assignment={assignment}
                     isFocused={assignment.officer.id === focusedOfficerId}
                     allOfficersInWindow={allActiveOfficers}
-                    rememberedBranches={settings.recentBranchNames}
+                    allBranches={allKnownBranches}
                     context={context}
                     windowRange={schedule.windows[assignment.windowKey]}
                     onSetBranch={(branch) => onSetBranch(assignment.officer.id, assignment.windowKey, branch)}
@@ -405,7 +416,6 @@ export function DayDetailsDialog({
               </div>
             )}
 
-            {/* Assign an unassigned officer section */}
             {unassignedOfficers.length > 0 ? (
               <div className="rounded-lg border border-dashed bg-muted/15 p-3 mt-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -435,7 +445,10 @@ export function DayDetailsDialog({
           </TabsContent>
 
           {/* Activities Tab */}
-          <TabsContent value="activities" className="flex-1 overflow-y-auto p-4 sm:p-5 mt-0 space-y-3 min-h-0">
+          <TabsContent
+            value="activities"
+            className="flex-1 overflow-y-auto p-4 sm:p-5 mt-0 space-y-3 focus-visible:outline-none data-[state=active]:animate-in data-[state=active]:fade-in-50 data-[state=active]:duration-200"
+          >
             <div>
               <h4 className="text-sm font-semibold text-foreground">Monthly Monitoring Tasks</h4>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -458,18 +471,154 @@ export function DayDetailsDialog({
             </div>
           </TabsContent>
         </Tabs>
-
-        {/* Footer */}
-        <DialogFooter className="border-t bg-muted/20 px-5 py-3 flex-row items-center justify-between sm:justify-between">
-          <p className="text-xs text-muted-foreground">
-            Changes update the schedule, table, and exports automatically.
-          </p>
-          <Button size="sm" onClick={() => onOpenChange(false)}>
-            Done
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function BranchCombobox({
+  value,
+  onChange,
+  allBranches,
+}: {
+  value: string
+  onChange: (val: string) => void
+  allBranches: string[]
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+
+  const filteredBranches = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return allBranches
+    return allBranches.filter((b) => b.toLowerCase().includes(q))
+  }, [allBranches, search])
+
+  function handleSelect(branchName: string) {
+    onChange(branchName)
+    setOpen(false)
+    setSearch('')
+  }
+
+  function handleQuickAction(action: string) {
+    if (action === 'Issue-Based Monitoring') {
+      onChange('Issue-Based Monitoring')
+    } else if (action === 'Special Visit at') {
+      const current = value.trim()
+      onChange(current ? `${current} (Special Visit)` : 'Special Visit at ')
+    }
+    setOpen(false)
+    setSearch('')
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <div className="relative flex-1 min-w-[200px]">
+        <Input
+          type="text"
+          value={value}
+          placeholder="Branch name (e.g. Lalmonirhat)"
+          onChange={(e) => onChange(e.target.value)}
+          className="h-8 w-full pr-7 text-xs bg-background"
+        />
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            className="absolute right-1 top-1/2 -translate-y-1/2 size-6 rounded text-muted-foreground hover:text-foreground"
+            title="Browse branch options"
+          >
+            <ChevronDown className={cn('size-3.5 transition-transform duration-150', open && 'rotate-180')} />
+            <span className="sr-only">Toggle branch options</span>
+          </Button>
+        </PopoverTrigger>
+      </div>
+
+      <PopoverContent
+        className="w-[280px] p-2 text-xs shadow-md"
+        align="start"
+        sideOffset={4}
+      >
+        <div className="space-y-2">
+          {allBranches.length > 5 ? (
+            <div className="px-0.5">
+              <Input
+                type="search"
+                placeholder="Filter branches..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-7 text-xs bg-muted/40"
+                autoFocus
+              />
+            </div>
+          ) : null}
+
+          <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1">
+            <div className="px-1.5 py-0.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+              {allBranches.length > 0 ? 'Available Branches' : 'No saved branches'}
+            </div>
+
+            {filteredBranches.map((branch) => {
+              const isSelected = value.trim().toLowerCase() === branch.trim().toLowerCase()
+              return (
+                <button
+                  key={branch}
+                  type="button"
+                  onClick={() => handleSelect(branch)}
+                  className={cn(
+                    'flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-xs transition-colors',
+                    isSelected
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'hover:bg-accent text-foreground',
+                  )}
+                >
+                  <span className="truncate">{branch}</span>
+                  {isSelected ? <Check className="size-3.5 shrink-0 text-primary" /> : null}
+                </button>
+              )
+            })}
+
+            {filteredBranches.length === 0 && allBranches.length > 0 ? (
+              <p className="px-2 py-2 text-center text-xs text-muted-foreground">
+                No matching branch found
+              </p>
+            ) : null}
+          </div>
+
+          <div className="border-t pt-1.5 space-y-1">
+            <div className="px-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+              Quick Actions
+            </div>
+            <div className="flex flex-wrap items-center gap-1 px-1">
+              {QUICK_BRANCHES.map((qb) => (
+                <button
+                  key={qb}
+                  type="button"
+                  onClick={() => handleQuickAction(qb)}
+                  className="rounded border bg-muted/40 hover:bg-muted px-2 py-0.5 text-[11px] text-foreground transition-colors"
+                >
+                  + {qb}
+                </button>
+              ))}
+              {value.trim() !== '' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange('')
+                    setOpen(false)
+                    setSearch('')
+                  }}
+                  className="rounded border border-destructive/30 bg-destructive/10 hover:bg-destructive/20 px-2 py-0.5 text-[11px] text-destructive transition-colors ml-auto"
+                >
+                  Clear
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -477,7 +626,7 @@ function OfficerAssignmentRow({
   assignment,
   isFocused,
   allOfficersInWindow,
-  rememberedBranches,
+  allBranches,
   context,
   windowRange,
   onSetBranch,
@@ -488,7 +637,7 @@ function OfficerAssignmentRow({
   assignment: OfficerDayAssignment
   isFocused: boolean
   allOfficersInWindow: MonthSchedule['officers']
-  rememberedBranches: string[]
+  allBranches: string[]
   context: HolidayContext
   windowRange: DateRange
   onSetBranch: (branch: string) => void
@@ -498,7 +647,6 @@ function OfficerAssignmentRow({
 }) {
   const [editingDates, setEditingDates] = useState(false)
   const [swapOpen, setSwapOpen] = useState(false)
-  const [suggestionsOpen, setSuggestionsOpen] = useState(false)
 
   const rangeSummary = useMemo(() => {
     return formatRangeText(assignment.ranges, { splitAroundHolidays: false, context })
@@ -509,18 +657,6 @@ function OfficerAssignmentRow({
     [allOfficersInWindow, assignment.officer.id],
   )
 
-  const suggestions = useMemo(() => {
-    const list: string[] = []
-    const seen = new Set<string>()
-    for (const b of [...QUICK_BRANCHES, ...rememberedBranches.slice(0, 8)]) {
-      const key = b.trim().toLowerCase()
-      if (key && !seen.has(key) && key !== assignment.branch.trim().toLowerCase()) {
-        seen.add(key)
-        list.push(b)
-      }
-    }
-    return list
-  }, [rememberedBranches, assignment.branch])
 
   return (
     <div
@@ -564,65 +700,14 @@ function OfficerAssignmentRow({
           </div>
         </div>
 
-        {/* Branch input with datalist and quick tools */}
+        {/* Branch combobox and tools */}
         <div className="flex-1 min-w-[260px]">
           <div className="flex items-center gap-1.5">
-            <div className="relative flex-1">
-              <input
-                id={`branch-input-${assignment.officer.id}`}
-                list={`branch-list-${assignment.officer.id}`}
-                type="text"
-                value={assignment.branch}
-                placeholder="Branch name (e.g. Lalmonirhat)"
-                onChange={(e) => onSetBranch(e.target.value)}
-                className="h-8 w-full rounded-md border bg-background px-2.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-              <datalist id={`branch-list-${assignment.officer.id}`}>
-                {rememberedBranches.map((b) => (
-                  <option key={b} value={b} />
-                ))}
-                {QUICK_BRANCHES.map((b) => (
-                  <option key={b} value={b} />
-                ))}
-              </datalist>
-            </div>
-
-            {/* Quick suggestions popover button */}
-            {suggestions.length > 0 ? (
-              <Popover open={suggestionsOpen} onOpenChange={setSuggestionsOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground shrink-0 gap-1"
-                    title="Quick branch suggestions"
-                  >
-                    <Sparkles className="size-3 text-primary" />
-                    <span className="hidden md:inline text-[11px]">Suggestions</span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-2 text-xs" align="end">
-                  <p className="font-semibold text-xs mb-1.5 text-foreground">Quick Branch Options:</p>
-                  <div className="max-h-48 overflow-y-auto space-y-1">
-                    {suggestions.map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => {
-                          const current = assignment.branch.trim()
-                          const next = current ? `${current} ${s}` : s
-                          onSetBranch(next)
-                          setSuggestionsOpen(false)
-                        }}
-                        className="w-full text-left rounded px-2 py-1 hover:bg-accent text-xs truncate"
-                      >
-                        + {s}
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            ) : null}
+            <BranchCombobox
+              value={assignment.branch}
+              onChange={onSetBranch}
+              allBranches={allBranches}
+            />
 
             {/* Swap branch popover */}
             {otherOfficers.length > 0 ? (
@@ -661,12 +746,21 @@ function OfficerAssignmentRow({
 
             {/* Edit dates toggle */}
             <Button
-              variant="ghost"
+              type="button"
+              variant={editingDates ? 'secondary' : 'outline'}
               size="sm"
-              className="h-8 px-2 text-[11px] text-muted-foreground hover:text-foreground shrink-0"
+              className={cn(
+                'h-8 px-2.5 text-xs font-medium rounded-md gap-1.5 transition-all shrink-0 shadow-2xs',
+                editingDates
+                  ? 'bg-primary/15 text-primary border-primary/40 hover:bg-primary/20 ring-1 ring-primary/30'
+                  : 'bg-background hover:bg-muted text-foreground border-border',
+              )}
               onClick={() => setEditingDates((current) => !current)}
+              title={editingDates ? 'Hide custom dates' : 'Customize visit dates for this officer'}
             >
-              {editingDates ? 'Close' : 'Dates'}
+              <CalendarDays className={cn('size-3.5', editingDates ? 'text-primary' : 'text-muted-foreground')} />
+              <span>Dates</span>
+              <ChevronDown className={cn('size-3 transition-transform duration-200', editingDates && 'rotate-180 text-primary')} />
             </Button>
           </div>
         </div>
