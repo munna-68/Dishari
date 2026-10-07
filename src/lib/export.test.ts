@@ -73,15 +73,6 @@ describe('the Word export', () => {
     expect(docxFileName(model)).toBe('Monitoring_Schedule_October_2026.docx')
   })
 
-  it('works when the two temporary officers share one merged cell', async () => {
-    const merged = buildDocumentModel({
-      settings: { ...defaultSettings(), mergeIdenticalTemporaryCells: true },
-      schedule: createSampleSchedule(),
-      context: emptyHolidayContext([5, 6]),
-    })
-    const blob = await renderScheduleDocx(merged)
-    expect(blob.size).toBeGreaterThan(2_000)
-  })
 
   it('works for a month with no officers at all', async () => {
     const empty = buildDocumentModel({

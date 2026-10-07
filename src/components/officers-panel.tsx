@@ -19,7 +19,17 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, PanelLeftClose, Trash2, Undo2, UserRoundPlus } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronUp,
+  GripVertical,
+  RotateCcw,
+  SlidersHorizontal,
+  Trash2,
+  Undo2,
+  UserRoundPlus,
+  Users,
+} from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,6 +41,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { Officer } from '@/lib/schema'
+import { getOfficerColor } from '@/lib/officer-colors'
 import { cn } from '@/lib/utils'
 
 export const MAX_VISIBLE_RECENT_CHIPS = 8
@@ -125,11 +136,11 @@ export function OfficersPanel({
   }
 
   return (
-    <Card className={cn('flex min-h-0 flex-col', className)}>
-      <CardHeader className="flex flex-row items-start justify-between gap-2 px-4 py-3 space-y-0">
+    <Card className={cn('flex min-h-0 flex-col rounded-xl border border-slate-200/80 shadow-2xs', className)}>
+      <CardHeader className="flex flex-row items-center justify-between gap-2 px-4 py-3.5 space-y-0">
         <div className="space-y-0.5">
-          <CardTitle className="text-base">Officers</CardTitle>
-          <p className="text-xs text-muted-foreground">
+          <CardTitle className="text-base font-bold text-foreground">Officers</CardTitle>
+          <p className="text-xs text-muted-foreground font-normal">
             {countText(permanent.length, temporary.length)}
           </p>
         </div>
@@ -137,13 +148,13 @@ export function OfficersPanel({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="icon-sm"
                 onClick={onCollapse}
                 aria-label="Collapse officers panel"
-                className="text-muted-foreground hover:text-foreground shrink-0 -mr-1"
+                className="size-8 rounded-lg border-slate-200 text-muted-foreground hover:text-foreground shrink-0 dark:border-slate-800"
               >
-                <PanelLeftClose className="size-4" />
+                <SlidersHorizontal className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Collapse panel (Ctrl+[ or Alt+O)</TooltipContent>
@@ -151,7 +162,7 @@ export function OfficersPanel({
         ) : null}
       </CardHeader>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 px-4 pb-4">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3.5 px-4 pb-4">
         <AddOfficer
           mode={mode}
           onModeChange={setMode}
@@ -213,20 +224,7 @@ export function OfficersPanel({
           onDragEnd={handleDragEnd}
         >
           <ScrollArea className="-mx-1 max-h-[26rem] min-h-0 flex-1 px-1 xl:max-h-full">
-            <div className="space-y-4 pr-1">
-              <OfficerGroup
-                title="Permanent"
-                officers={permanent}
-                selectedOfficerId={selectedOfficerId}
-                onSelect={onSelect}
-                onToggleCrossOut={onToggleCrossOut}
-                onRename={onRename}
-                onRemove={onRemove}
-                onAddClick={() => {
-                  setMode('permanent')
-                  inputRef.current?.focus()
-                }}
-              />
+            <div className="space-y-3 pr-1">
               <OfficerGroup
                 title="Temporary"
                 officers={temporary}
@@ -240,26 +238,39 @@ export function OfficersPanel({
                   inputRef.current?.focus()
                 }}
               />
+              <OfficerGroup
+                title="Permanent"
+                officers={permanent}
+                selectedOfficerId={selectedOfficerId}
+                onSelect={onSelect}
+                onToggleCrossOut={onToggleCrossOut}
+                onRename={onRename}
+                onRemove={onRemove}
+                onAddClick={() => {
+                  setMode('permanent')
+                  inputRef.current?.focus()
+                }}
+              />
             </div>
           </ScrollArea>
 
           <DragOverlay dropAnimation={null}>
             {activeOfficer ? (
-              <div className="flex items-center gap-2 rounded-md border bg-card p-2 shadow-xl ring-2 ring-primary/40 cursor-grabbing pointer-events-none select-none opacity-95">
-                <span className="p-1 text-muted-foreground">
-                  <GripVertical className="size-4" aria-hidden />
-                </span>
+              <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-card p-2.5 shadow-xl ring-2 ring-primary/40 cursor-grabbing pointer-events-none select-none opacity-95">
                 <span
                   aria-hidden
                   className={cn(
-                    'flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold',
+                    'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold border transition-colors',
+                    getOfficerColor(activeOfficer.id).avatarBg,
+                    getOfficerColor(activeOfficer.id).avatarText,
+                    getOfficerColor(activeOfficer.id).avatarBorder,
                     activeOfficer.crossedOut && 'line-through',
                   )}
                 >
                   {initials(activeOfficer.name)}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{activeOfficer.name}</p>
+                  <p className="truncate text-sm font-semibold">{activeOfficer.name}</p>
                 </div>
               </div>
             ) : null}
@@ -272,8 +283,9 @@ export function OfficersPanel({
               variant="outline"
               size="sm"
               onClick={onSetRoster}
-              className="w-full text-center whitespace-normal"
+              className="w-full rounded-xl border border-slate-200/80 py-2.5 text-xs font-medium text-slate-700 hover:text-foreground gap-2 dark:border-slate-800 dark:text-slate-300"
             >
+              <RotateCcw className="size-3.5" />
               Reset permanent officers from the roster
             </Button>
           </TooltipTrigger>
@@ -303,33 +315,27 @@ function OfficerGroup({
   onRemove?: (officerId: string) => void
   onAddClick?: () => void
 }) {
-  if (officers.length === 0) {
-    return (
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold tracking-wide uppercase text-muted-foreground">{title}</p>
-          {onAddClick ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onAddClick}
-              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground"
-            >
-              + New
-            </Button>
-          ) : null}
-        </div>
-        <p className="text-xs text-muted-foreground">None yet.</p>
-      </div>
-    )
-  }
+  const [isOpen, setIsOpen] = useState(true)
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold tracking-wide uppercase text-muted-foreground">
-          {title} · {officers.length}
-        </p>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between py-0.5">
+        <button
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="flex items-center gap-2 text-xs font-bold text-slate-800 hover:text-foreground dark:text-slate-200 cursor-pointer select-none group"
+        >
+          <Users className="size-3.5 text-slate-400 group-hover:text-foreground" />
+          <span>{title} Officers</span>
+          <span className="inline-flex items-center justify-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-muted dark:text-slate-300">
+            {officers.length}
+          </span>
+          {isOpen ? (
+            <ChevronUp className="size-3.5 text-slate-400 group-hover:text-foreground" />
+          ) : (
+            <ChevronDown className="size-3.5 text-slate-400 group-hover:text-foreground" />
+          )}
+        </button>
         {onAddClick ? (
           <Button
             variant="ghost"
@@ -341,22 +347,29 @@ function OfficerGroup({
           </Button>
         ) : null}
       </div>
-      <SortableContext items={officers.map((officer) => officer.id)} strategy={verticalListSortingStrategy}>
-        <ul className="space-y-1.5">
-          {officers.map((officer) => (
-            <li key={officer.id}>
-              <OfficerCard
-                officer={officer}
-                isSelected={officer.id === selectedOfficerId}
-                onSelect={() => onSelect(officer.id)}
-                onToggleCrossOut={() => onToggleCrossOut(officer.id)}
-                onRename={(name) => onRename(officer.id, name)}
-                onRemove={onRemove ? () => onRemove(officer.id) : undefined}
-              />
-            </li>
-          ))}
-        </ul>
-      </SortableContext>
+
+      {isOpen && (
+        officers.length === 0 ? (
+          <p className="px-1 py-1 text-xs text-muted-foreground">None yet.</p>
+        ) : (
+          <SortableContext items={officers.map((officer) => officer.id)} strategy={verticalListSortingStrategy}>
+            <ul className="space-y-2">
+              {officers.map((officer) => (
+                <li key={officer.id}>
+                  <OfficerCard
+                    officer={officer}
+                    isSelected={officer.id === selectedOfficerId}
+                    onSelect={() => onSelect(officer.id)}
+                    onToggleCrossOut={() => onToggleCrossOut(officer.id)}
+                    onRename={(name) => onRename(officer.id, name)}
+                    onRemove={onRemove ? () => onRemove(officer.id) : undefined}
+                  />
+                </li>
+              ))}
+            </ul>
+          </SortableContext>
+        )
+      )}
     </div>
   )
 }
@@ -388,33 +401,27 @@ function OfficerCard({
     setIsEditing(false)
   }
 
+  const officerColor = getOfficerColor(officer.id)
+
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
-        'flex items-center gap-2 rounded-md border bg-card p-2',
+        'group flex items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-2xs transition-colors hover:border-slate-300 dark:bg-card dark:border-slate-800/80',
         isDragging && 'opacity-30 border-dashed border-primary/50 bg-muted/40',
-        officer.crossedOut && 'bg-muted/60',
-        isSelected && 'ring-primary/50 ring-2',
+        officer.crossedOut && 'bg-slate-50/80 opacity-75 dark:bg-muted/40',
+        isSelected && 'ring-2 ring-primary/50 border-primary/50',
       )}
     >
-      <button
-        type="button"
-        ref={setActivatorNodeRef}
-        {...attributes}
-        {...listeners}
-        aria-label={`Reorder ${officer.name}`}
-        className="text-muted-foreground cursor-grab touch-none rounded-sm p-1 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:cursor-grabbing"
-      >
-        <GripVertical className="size-4" aria-hidden />
-      </button>
-
       <span
         aria-hidden
         className={cn(
-          'flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold',
-          officer.crossedOut && 'line-through',
+          'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold border transition-colors',
+          officerColor.avatarBg,
+          officerColor.avatarText,
+          officerColor.avatarBorder,
+          officer.crossedOut && 'line-through opacity-70',
         )}
       >
         {initials(officer.name)}
@@ -435,7 +442,7 @@ function OfficerCard({
               }
             }}
             aria-label={`Rename ${officer.name}`}
-            className="h-7 py-0 text-sm"
+            className="h-7 py-0 text-xs font-bold"
           />
         ) : (
           <button
@@ -443,7 +450,7 @@ function OfficerCard({
             onDoubleClick={() => setIsEditing(true)}
             onClick={onSelect}
             className={cn(
-              'block max-w-full truncate text-left text-sm font-medium hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+              'block max-w-full truncate text-left text-xs font-bold text-slate-800 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dark:text-slate-100',
               officer.crossedOut && 'text-muted-foreground line-through',
             )}
             title="Click to highlight their dates. Double-click to rename."
@@ -451,17 +458,20 @@ function OfficerCard({
             {officer.name}
           </button>
         )}
-        <div className="mt-0.5 flex flex-wrap items-center gap-1">
-          <Badge
-            variant={officer.kind === 'permanent' ? 'secondary' : 'outline'}
-            className="px-1 py-0 text-[10px]"
-          >
-            {officer.kind === 'permanent' ? 'Permanent' : 'Temporary'}
-          </Badge>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          {officer.kind === 'permanent' ? (
+            <span className="inline-flex items-center rounded-full border border-emerald-200/70 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+              Permanent
+            </span>
+          ) : (
+            <span className="inline-flex items-center rounded-full border border-sky-200/70 bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:border-sky-800/50 dark:bg-sky-950/40 dark:text-sky-300">
+              Temporary
+            </span>
+          )}
           {officer.crossedOut ? (
-            <Badge variant="outline" className="border-amber-500/50 px-1 py-0 text-[10px] text-amber-600 dark:text-amber-400">
+            <span className="inline-flex items-center rounded-full border border-amber-300/70 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-300">
               Left out of table
-            </Badge>
+            </span>
           ) : null}
         </div>
       </div>
@@ -471,15 +481,18 @@ function OfficerCard({
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon-xs"
               onClick={onToggleCrossOut}
               aria-label={officer.crossedOut ? `Restore ${officer.name}` : `Cross out ${officer.name}`}
-              className={officer.crossedOut ? 'text-primary hover:text-primary hover:bg-primary/10' : ''}
+              className={cn(
+                'size-7 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200',
+                officer.crossedOut && 'text-primary hover:text-primary hover:bg-primary/10',
+              )}
             >
               {officer.crossedOut ? (
-                <Undo2 className="size-4" aria-hidden />
+                <Undo2 className="size-3.5" aria-hidden />
               ) : (
-                <span className="text-sm leading-none" aria-hidden>✕</span>
+                <span className="text-xs font-semibold leading-none" aria-hidden>✕</span>
               )}
             </Button>
           </TooltipTrigger>
@@ -490,16 +503,28 @@ function OfficerCard({
           </TooltipContent>
         </Tooltip>
 
+        <button
+          type="button"
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          aria-label={`Reorder ${officer.name}`}
+          className="text-slate-400 cursor-grab touch-none rounded-md p-1 hover:text-slate-600 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:cursor-grabbing dark:hover:text-slate-200"
+        >
+          <GripVertical className="size-4" aria-hidden />
+        </button>
+
         {onRemove ? (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
-                size="icon-sm"
+                size="icon-xs"
                 onClick={onRemove}
                 aria-label={`Remove ${officer.name}`}
+                className="size-7 rounded-md text-slate-400 hover:text-destructive hover:bg-destructive/10 dark:hover:text-destructive"
               >
-                <Trash2 className="size-4" aria-hidden />
+                <Trash2 className="size-3.5" aria-hidden />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Remove {officer.name} from this month</TooltipContent>
@@ -660,23 +685,26 @@ function AddOfficer({
                     <CommandEmpty>No roster names in Settings.</CommandEmpty>
                   ) : (
                     <CommandGroup heading="Permanent Roster">
-                      {rosterItems.map((item) => (
-                        <CommandItem
-                          key={item.name}
-                          value={item.name}
-                          onSelect={() => {
-                            if (item.existing) {
-                              if (item.isCrossedOut) {
-                                onToggleCrossOut(item.existing.id)
+                      {rosterItems.map((item) => {
+                        const oColor = getOfficerColor(item.name)
+                        return (
+                          <CommandItem
+                            key={item.name}
+                            value={item.name}
+                            onSelect={() => {
+                              if (item.existing) {
+                                if (item.isCrossedOut) {
+                                  onToggleCrossOut(item.existing.id)
+                                }
+                              } else {
+                                onAddPermanent(item.name)
                               }
-                            } else {
-                              onAddPermanent(item.name)
-                            }
-                            setValue('')
-                            setRosterOpen(false)
-                          }}
-                        >
-                          <span className="flex-1 truncate">{item.name}</span>
+                              setValue('')
+                              setRosterOpen(false)
+                            }}
+                          >
+                            <span className={cn('size-2 rounded-full shrink-0 mr-1.5', oColor.dotBg)} aria-hidden />
+                            <span className="flex-1 truncate">{item.name}</span>
                           {item.isCrossedOut ? (
                             <Badge variant="outline" className="border-amber-500/50 text-[10px] text-amber-600 dark:text-amber-400">
                               Restore
@@ -691,8 +719,9 @@ function AddOfficer({
                             </Badge>
                           )}
                         </CommandItem>
-                      ))}
-                    </CommandGroup>
+                      )
+                    })}
+                  </CommandGroup>
                   )}
                 </CommandList>
               </Command>
@@ -801,6 +830,7 @@ function RosterChip({
   isCrossedOut: boolean
   onAction: () => void
 }) {
+  const oColor = getOfficerColor(name)
   return (
     <button
       type="button"
@@ -814,6 +844,7 @@ function RosterChip({
       )}
       title={isCrossedOut ? `Restore ${name} to table` : `Add ${name} to this month`}
     >
+      <span className={cn('size-1.5 rounded-full shrink-0', oColor.dotBg)} aria-hidden />
       <span>{name}</span>
       <span className="text-muted-foreground text-[10px]">
         {isCrossedOut ? '↩' : '+'}

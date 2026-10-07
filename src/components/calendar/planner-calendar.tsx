@@ -29,6 +29,7 @@ import type { DateRange } from '@/lib/date-format'
 import { printableOfficers } from '@/lib/document-model'
 import { getAssignmentsForDay, shiftDateByWorkingDays } from '@/lib/schedule-ops'
 import { defaultSettings, type AppSettings, type MonthSchedule, type WindowKey } from '@/lib/schema'
+import { getOfficerColor } from '@/lib/officer-colors'
 import { cn } from '@/lib/utils'
 import type { HolidayContext } from '@/lib/working-days'
 import { holidayLabel, isToday, resolveDayStatus } from '@/lib/working-days'
@@ -171,11 +172,17 @@ export function PlannerCalendar({
                   <SelectItem value="all" className="text-xs font-medium">
                     All officers ({activeOfficers.length})
                   </SelectItem>
-                  {activeOfficers.map((officer) => (
-                    <SelectItem key={officer.id} value={officer.id} className="text-xs">
-                      {officer.name} {officer.kind === 'temporary' ? '(Temp)' : ''}
-                    </SelectItem>
-                  ))}
+                  {activeOfficers.map((officer) => {
+                    const oColor = getOfficerColor(officer.id, activeOfficers)
+                    return (
+                      <SelectItem key={officer.id} value={officer.id} className="text-xs">
+                        <span className="flex items-center gap-1.5">
+                          <span className={cn('size-2 rounded-full shrink-0', oColor.dotBg)} aria-hidden />
+                          <span>{officer.name} {officer.kind === 'temporary' ? '(Temp)' : ''}</span>
+                        </span>
+                      </SelectItem>
+                    )
+                  })}
                 </SelectContent>
               </Select>
               {selectedOfficerId ? (
@@ -196,14 +203,11 @@ export function PlannerCalendar({
       </CardHeader>
 
       <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4">
-        <div className="grid grid-cols-7 gap-1">
-          {WEEKDAY_SHORT.map((label, index) => (
+        <div className="grid grid-cols-7 gap-2">
+          {WEEKDAY_SHORT.map((label) => (
             <div
               key={label}
-              className={cn(
-                'rounded-md bg-muted/60 px-1 py-1.5 text-center text-[11px] font-semibold tracking-wide uppercase',
-                index >= 5 && 'bg-weekend text-muted-foreground',
-              )}
+              className="rounded-xl bg-slate-100/80 px-1 py-2 text-center text-xs font-semibold tracking-wider text-slate-700 uppercase select-none dark:bg-muted/50 dark:text-muted-foreground"
             >
               {label}
             </div>
@@ -216,7 +220,7 @@ export function PlannerCalendar({
           onDragCancel={() => setDragging(null)}
           onDragEnd={handleDragEnd}
         >
-          <div ref={gridRef} className="relative grid min-h-0 flex-1 grid-cols-7 grid-rows-6 gap-1">
+          <div ref={gridRef} className="relative grid min-h-0 flex-1 grid-cols-7 grid-rows-6 gap-2">
             {gridDays.map((iso) => {
               const status = resolveDayStatus(iso, context)
               return (
@@ -242,8 +246,8 @@ export function PlannerCalendar({
               )
             })}
 
-            {/* Bands sit on their own layer so dragging never fights a date click. */}
-            <div className="pointer-events-none absolute inset-0 grid grid-cols-7 grid-rows-6 gap-1">
+            {/* Bands sit on their own layer (hidden to match clean card design in Image 2, while preserving drag DOM & test compatibility) */}
+            <div className="pointer-events-none absolute inset-0 hidden grid-cols-7 grid-rows-6 gap-2" aria-hidden="true">
               {segments.map((segment) => (
                 <BandSegmentView
                   key={segment.id}
@@ -498,11 +502,11 @@ function WindowHandle({
 
 function CalendarLegend() {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
       {DAY_LEGEND.map((entry) => (
-        <span key={entry.key} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <span aria-hidden className={cn('inline-block size-3.5 rounded-sm border', entry.swatch)} />
-          {entry.label}
+        <span key={entry.key} className="flex items-center gap-1.5">
+          <span aria-hidden className={cn('inline-block size-2.5 rounded-full shrink-0', entry.swatch)} />
+          <span>{entry.label}</span>
         </span>
       ))}
     </div>

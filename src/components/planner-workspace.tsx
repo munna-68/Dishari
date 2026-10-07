@@ -22,7 +22,7 @@ import { usePanelResize } from '@/hooks/use-panel-resize'
 import { monthLabel, shiftMonthKey } from '@/lib/date'
 import type { ParsedHolidayRow } from '@/lib/holidays'
 import { collectExportBlockers, collectScheduleWarnings } from '@/lib/schedule-ops'
-import { rememberBranchName, type WindowKey } from '@/lib/schema'
+import type { WindowKey } from '@/lib/schema'
 import { cn } from '@/lib/utils'
 import { usePlanner } from '@/state/planner-context'
 
@@ -136,7 +136,7 @@ export function PlannerWorkspace() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
+    <div className="flex min-h-dvh flex-col bg-slate-50/70 dark:bg-background">
       <TopBar
         monthKey={monthKey}
         saveStatus={planner.saveStatus}
@@ -362,9 +362,9 @@ export function PlannerWorkspace() {
                       { undo: true, undoLabel: 'Undo swap' },
                     )
                   }
-                  onRememberBranch={(branch) =>
-                    planner.updateSettings({ recentBranchNames: rememberBranchName(settings, branch).recentBranchNames })
-                  }
+                  onRememberBranch={() => {
+                    // Configured branches are managed explicitly in Settings
+                  }}
                 />
               </TabsContent>
 

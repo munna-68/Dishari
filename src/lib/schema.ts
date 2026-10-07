@@ -13,9 +13,6 @@ export interface AppSettings {
   defaultPermanentRoster: string[]
   recentTemporaryNames: string[]
   recentBranchNames: string[]
-  mergeIdenticalTemporaryCells: boolean
-  splitRangesAroundHolidays: boolean
-  crossMarkTemporaryNames: boolean
 }
 
 export type OfficerKind = 'permanent' | 'temporary'
@@ -71,6 +68,27 @@ export const DEFAULT_ACTIVITIES = [
   'Conduct a study to observe the write-off loan situation.',
 ]
 
+export const DEFAULT_BRANCHES = [
+  'Mangalpur, Dinajpur',
+  'Hatrampur, Dinajpur',
+  'Mostofirhat, Lalmonirhat',
+  'Patgram Sadar, Lalmonirhat',
+  'Pirgonj, Rangpur',
+  'Paglapir, Rangpur',
+  'Dalia, Nilphamari',
+  'Sayedpur Sadar, Nilphamari',
+  'Mondolerhat, Kurigram',
+  'Pouroshova (ME), Kurigram',
+  'Jashore Sadar, Jashore',
+  'Allahrdarga, Chuadanga',
+  'Kadirabad, Naogaon',
+  'Sonatola, Bogura',
+  'Narshingdi Sadar (ME), Narshingdi',
+  'Shalna (ME), Gazipur',
+  'Bajitpur, Narshingdi',
+  'Narshingdi Sadar, Narshingdi',
+]
+
 export function defaultSettings(): AppSettings {
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -80,10 +98,7 @@ export function defaultSettings(): AppSettings {
     weeklyOffDays: [5, 6],
     defaultPermanentRoster: [...DEFAULT_PERMANENT_ROSTER],
     recentTemporaryNames: [],
-    recentBranchNames: [],
-    mergeIdenticalTemporaryCells: false,
-    splitRangesAroundHolidays: false,
-    crossMarkTemporaryNames: false,
+    recentBranchNames: [...DEFAULT_BRANCHES],
   }
 }
 

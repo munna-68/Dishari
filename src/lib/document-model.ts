@@ -104,8 +104,7 @@ export function activityText(activities: string[]): string {
     .join('\n')
 }
 
-export function printableStaffName(officer: Officer, crossMark: boolean): string {
-  if (crossMark && officer.kind === 'temporary') return `× ${officer.name}`
+export function printableStaffName(officer: Officer): string {
   return officer.name
 }
 
@@ -151,9 +150,7 @@ export function buildDocumentModel(input: BuildDocumentInput): DocumentModel {
   const heading = `Monitoring Schedule for ${monthName} ${schedule.year}`
   const fileBaseName = `Monitoring_Schedule_${monthName}_${schedule.year}`
 
-  const split = settings.splitRangesAroundHolidays
   const officers = printableOfficers(schedule)
-  const mergeTemporary = settings.mergeIdenticalTemporaryCells
 
   const headerRow: DocRow = {
     cells: SCHEDULE_COLUMNS.map((column) => docCell({ text: column.header, bold: true, shaded: true })),
@@ -169,36 +166,10 @@ export function buildDocumentModel(input: BuildDocumentInput): DocumentModel {
     if (!assignment) return ''
     const ranges: DateRange[] =
       assignment.customRanges.length > 0 ? assignment.customRanges : [schedule.windows[windowKey]]
-    return formatRangeText(ranges, { splitAroundHolidays: split, context })
+    return formatRangeText(ranges, { splitAroundHolidays: false, context })
   }
 
   const branchText = (assignment: Assignment | undefined): string => assignment?.branch.trim() ?? ''
-
-  // Merge runs of identical adjacent temporary branch cells when the setting is on.
-  const mergeRuns = new Map<WindowKey, Map<number, number>>()
-
-  if (mergeTemporary) {
-    for (const windowKey of ['one', 'two'] as const) {
-      const runs = new Map<number, number>()
-      let start = 0
-      while (start < officers.length) {
-        const officer = officers[start] as Officer
-        let end = start + 1
-        if (officer.kind === 'temporary') {
-          const text = branchText(schedule.assignments[officer.id]?.[windowKey])
-          while (end < officers.length) {
-            const next = officers[end] as Officer
-            if (next.kind !== 'temporary') break
-            if (branchText(schedule.assignments[next.id]?.[windowKey]) !== text) break
-            end += 1
-          }
-        }
-        if (end - start > 1) runs.set(start, end - start)
-        start = end
-      }
-      mergeRuns.set(windowKey, runs)
-    }
-  }
 
   officers.forEach((officer, index) => {
     const assignment = schedule.assignments[officer.id]
@@ -221,17 +192,9 @@ export function buildDocumentModel(input: BuildDocumentInput): DocumentModel {
     const visitOne = docCell({ text: visitText(assignment?.one, 'one') })
     const visitTwo = docCell({ text: visitText(assignment?.two, 'two') })
 
-    for (const windowKey of ['one', 'two'] as const) {
-      const length = mergeRuns.get(windowKey)?.get(index)
-      if (length) {
-        const target = windowKey === 'one' ? branchOne : branchTwo
-        target.rowSpan = length
-      }
-    }
-
     const cells: DocCell[] = [
       activityCell,
-      docCell({ text: printableStaffName(officer, settings.crossMarkTemporaryNames) }),
+      docCell({ text: printableStaffName(officer) }),
       branchOne,
       visitOne,
       branchTwo,

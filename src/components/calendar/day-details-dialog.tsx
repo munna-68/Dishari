@@ -49,6 +49,7 @@ import type { AppSettings, MonthSchedule, WindowKey } from '@/lib/schema'
 import { cn } from '@/lib/utils'
 import type { HolidayContext } from '@/lib/working-days'
 import { holidayLabel, isToday, resolveDayStatus } from '@/lib/working-days'
+import { getOfficerColor } from '@/lib/officer-colors'
 
 const QUICK_BRANCHES = ['Issue-Based Monitoring', 'Special Visit at']
 
@@ -93,9 +94,7 @@ export function DayDetailsDialog({
 }: DayDetailsDialogProps) {
   const [activeTab, setActiveTab] = useState<'officers' | 'activities'>('officers')
 
-  if (!iso) return null
-
-  const parsedDate = fromIso(iso)
+  const parsedDate = iso ? fromIso(iso) : null
   const formattedDayTitle = parsedDate
     ? new Intl.DateTimeFormat('en-GB', {
         weekday: 'long',
@@ -103,17 +102,17 @@ export function DayDetailsDialog({
         month: 'long',
         year: 'numeric',
       }).format(parsedDate)
-    : iso
+    : iso ?? ''
 
-  const status = resolveDayStatus(iso, context)
+  const status = iso ? resolveDayStatus(iso, context) : { kind: 'working' as const }
   const holiday = holidayLabel(status)
   const bengaliHoliday = status.kind === 'holiday' ? status.holiday.nameBn?.trim() || null : null
-  const dayIsToday = isToday(iso)
-  const inWindowOne = isWithin(iso, schedule.windows.one.start, schedule.windows.one.end)
-  const inWindowTwo = isWithin(iso, schedule.windows.two.start, schedule.windows.two.end)
+  const dayIsToday = iso ? isToday(iso) : false
+  const inWindowOne = iso ? isWithin(iso, schedule.windows.one.start, schedule.windows.one.end) : false
+  const inWindowTwo = iso ? isWithin(iso, schedule.windows.two.start, schedule.windows.two.end) : false
 
   const assignments = useMemo(() => {
-    return getAssignmentsForDay(iso, schedule)
+    return iso ? getAssignmentsForDay(iso, schedule) : []
   }, [iso, schedule])
 
   const allActiveOfficers = useMemo(() => printableOfficers(schedule), [schedule])
@@ -165,6 +164,8 @@ export function DayDetailsDialog({
       onSetCustomRanges(officerId, windowKey, [])
     }
   }
+
+  if (!iso) return null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -431,11 +432,17 @@ export function DayDetailsDialog({
                         <SelectValue placeholder="+ Schedule an officer..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {unassignedOfficers.map((o) => (
-                          <SelectItem key={o.id} value={o.id} className="text-xs">
-                            {o.name} {o.kind === 'temporary' ? '(Temp)' : ''}
-                          </SelectItem>
-                        ))}
+                        {unassignedOfficers.map((o) => {
+                          const oColor = getOfficerColor(o.id, allActiveOfficers)
+                          return (
+                            <SelectItem key={o.id} value={o.id} className="text-xs">
+                              <span className="flex items-center gap-1.5">
+                                <span className={cn('size-2 rounded-full shrink-0', oColor.dotBg)} aria-hidden />
+                                <span>{o.name} {o.kind === 'temporary' ? '(Temp)' : ''}</span>
+                              </span>
+                            </SelectItem>
+                          )
+                        })}
                       </SelectContent>
                     </Select>
                   </div>
@@ -658,6 +665,8 @@ function OfficerAssignmentRow({
   )
 
 
+  const officerColor = getOfficerColor(assignment.officer.id, allOfficersInWindow)
+
   return (
     <div
       className={cn(
@@ -668,7 +677,14 @@ function OfficerAssignmentRow({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Officer name & window */}
         <div className="flex items-center gap-2.5 min-w-[210px]">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground">
+          <div
+            className={cn(
+              'flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold border transition-colors',
+              officerColor.avatarBg,
+              officerColor.avatarText,
+              officerColor.avatarBorder,
+            )}
+          >
             {officerInitials(assignment.officer.name)}
           </div>
           <div className="min-w-0">

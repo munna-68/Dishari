@@ -2,6 +2,7 @@ import { compareIso, isValidIso, monthBounds, parseMonthKey, toMonthKey } from '
 import type { DateRange } from './date-format'
 import {
   DEFAULT_ACTIVITIES,
+  DEFAULT_BRANCHES,
   DEFAULT_PERMANENT_ROSTER,
   MAX_RECENT_BRANCH_NAMES,
   MAX_RECENT_TEMPORARY_NAMES,
@@ -42,10 +43,6 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 
 function stringOr(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback
-}
-
-function booleanOr(value: unknown, fallback: boolean): boolean {
-  return typeof value === 'boolean' ? value : fallback
 }
 
 function numberArrayOr(value: unknown, fallback: number[]): number[] {
@@ -169,6 +166,7 @@ export function migrateSettings(raw: unknown): MigrationResult<AppSettings> {
   }
 
   const roster = stringArrayOr(raw.defaultPermanentRoster, base.defaultPermanentRoster, 40)
+  const branches = stringArrayOr(raw.recentBranchNames, base.recentBranchNames, MAX_RECENT_BRANCH_NAMES)
   return {
     data: {
       ...base,
@@ -182,10 +180,7 @@ export function migrateSettings(raw: unknown): MigrationResult<AppSettings> {
         base.recentTemporaryNames,
         MAX_RECENT_TEMPORARY_NAMES,
       ),
-      recentBranchNames: stringArrayOr(raw.recentBranchNames, base.recentBranchNames, MAX_RECENT_BRANCH_NAMES),
-      mergeIdenticalTemporaryCells: booleanOr(raw.mergeIdenticalTemporaryCells, base.mergeIdenticalTemporaryCells),
-      splitRangesAroundHolidays: booleanOr(raw.splitRangesAroundHolidays, base.splitRangesAroundHolidays),
-      crossMarkTemporaryNames: booleanOr(raw.crossMarkTemporaryNames, base.crossMarkTemporaryNames),
+      recentBranchNames: branches.length > 0 ? branches : [...DEFAULT_BRANCHES],
     },
     fromVersion,
     toVersion: SCHEMA_VERSION,

@@ -119,46 +119,12 @@ describe('the document model that feeds all three renderers', () => {
     expect(rows[10]?.cells[2]?.rowSpan).toBe(1)
   })
 
-  it('merges identical adjacent temporary branch cells when the setting is on', () => {
-    const rows = modelFor(sample, { mergeIdenticalTemporaryCells: true }).rows.slice(1)
-    expect(rows[9]?.cells[2]?.text).toBe('Issue-Based Monitoring')
-    expect(rows[9]?.cells[2]?.rowSpan).toBe(2)
-    // The window two branches differ, so they stay separate.
-    expect(rows[9]?.cells[4]?.rowSpan).toBe(1)
-  })
-
-  it('does not merge when the temporary branches differ', () => {
-    const schedule = structuredClone(sample)
-    const second = schedule.officers[10]
-    if (second) {
-      const assignment = schedule.assignments[second.id]
-      if (assignment) assignment.one = { ...assignment.one, branch: 'Kurigram Region' }
-    }
-    const rows = modelFor(schedule, { mergeIdenticalTemporaryCells: true }).rows.slice(1)
+  it('renders staff names and branches cleanly without cross marks or merged rows', () => {
+    const rows = modelFor(sample).rows.slice(1)
+    expect(rows[9]?.cells[1]?.text).toBe('Maydul Islam')
+    expect(rows[10]?.cells[1]?.text).toBe('Iftekharul Islam')
     expect(rows[9]?.cells[2]?.rowSpan).toBe(1)
-  })
-
-  it('adds a cross mark beside temporary names only when the setting is on', () => {
-    expect(modelFor(sample).rows[11]?.cells[1]?.text).toBe('Iftekharul Islam')
-    const crossed = modelFor(sample, { crossMarkTemporaryNames: true }).rows
-    expect(crossed[11]?.cells[1]?.text).toBe('× Iftekharul Islam')
-    expect(crossed[1]?.cells[1]?.text).toBe('Moyen Uddin')
-  })
-
-  it('splits the printed date text when the setting is on', () => {
-    const schedule = structuredClone(sample)
-    schedule.windows.one = { start: '2026-10-04', end: '2026-10-13' }
-    const holiContext: HolidayContext = setHoliday(context, '2026-10-08', {
-      source: 'imported',
-      nameEn: 'Holi',
-    })
-    const model = buildDocumentModel({
-      settings: { ...defaultSettings(), splitRangesAroundHolidays: true },
-      schedule,
-      context: holiContext,
-    })
-    // 8 October is the holiday and 9-10 October are the weekly off days.
-    expect(model.rows[1]?.cells[3]?.text).toBe('04-07 & 11-13 October')
+    expect(rows[10]?.cells[2]?.rowSpan).toBe(1)
   })
 
   it('says so plainly when the month has no officers', () => {

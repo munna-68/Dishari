@@ -13,9 +13,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { Switch } from '@/components/ui/switch'
 import { WEEKDAY_LONG } from '@/lib/date'
-import type { AppSettings } from '@/lib/schema'
+import { DEFAULT_BRANCHES, type AppSettings } from '@/lib/schema'
 import { cn } from '@/lib/utils'
 
 export interface SettingsDialogProps {
@@ -28,6 +27,7 @@ export interface SettingsDialogProps {
 export function SettingsDialog({ open, onOpenChange, settings, onChange }: SettingsDialogProps) {
   const [roster, setRoster] = useState(settings.defaultPermanentRoster.join('\n'))
   const [newName, setNewName] = useState('')
+  const [newBranch, setNewBranch] = useState('')
   // Reload the draft from the roster each time the dialog is opened.
   const [wasOpen, setWasOpen] = useState(open)
   if (open !== wasOpen) {
@@ -55,6 +55,18 @@ export function SettingsDialog({ open, onOpenChange, settings, onChange }: Setti
     if (name === '') return
     onChange({ defaultPermanentRoster: [...settings.defaultPermanentRoster, name] })
     setNewName('')
+  }
+
+  function addBranch() {
+    const branch = newBranch.trim()
+    if (branch === '') return
+    const exists = settings.recentBranchNames.some(
+      (b) => b.trim().toLowerCase() === branch.toLowerCase(),
+    )
+    if (!exists) {
+      onChange({ recentBranchNames: [...settings.recentBranchNames, branch] })
+    }
+    setNewBranch('')
   }
 
   return (
@@ -150,62 +162,81 @@ export function SettingsDialog({ open, onOpenChange, settings, onChange }: Setti
 
           <Separator />
 
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold">Export options</h3>
-            <ToggleRow
-              label="Merge identical adjacent temporary branch cells"
-              hint="In September two temporary officers shared one 'Issue-Based Monitoring' cell."
-              checked={settings.mergeIdenticalTemporaryCells}
-              onChange={(mergeIdenticalTemporaryCells) => onChange({ mergeIdenticalTemporaryCells })}
-            />
-            <ToggleRow
-              label="Show a cross mark beside temporary names"
-              hint="Prints '× Maydul Islam' so the temporary staff stand out."
-              checked={settings.crossMarkTemporaryNames}
-              onChange={(crossMarkTemporaryNames) => onChange({ crossMarkTemporaryNames })}
-            />
-            <ToggleRow
-              label="Split displayed date ranges around holidays"
-              hint="Off, the printed text stays a continuous range such as '05-16 July' like the paper sheets."
-              checked={settings.splitRangesAroundHolidays}
-              onChange={(splitRangesAroundHolidays) => onChange({ splitRangesAroundHolidays })}
-            />
-          </section>
-
-          <Separator />
-
-          <section className="space-y-1">
-            <h3 className="text-sm font-semibold">Remembered values</h3>
+          <section className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Branches</h3>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => onChange({ recentBranchNames: [...DEFAULT_BRANCHES] })}
+                title="Reset branches to default list"
+              >
+                Reset to defaults
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground">
-              {settings.recentTemporaryNames.length} recent temporary name
-              {settings.recentTemporaryNames.length === 1 ? '' : 's'} (maximum 20) and{' '}
-              {settings.recentBranchNames.length} branch name
-              {settings.recentBranchNames.length === 1 ? '' : 's'} (maximum 150).
+              Branches available for monthly schedules. These appear as suggestions in assignment cells and day details.
             </p>
-            {settings.recentBranchNames.length > 0 ? (
-              <div className="flex max-h-32 flex-wrap gap-1 overflow-y-auto pt-1">
-                {settings.recentBranchNames.slice(0, 40).map((branch) => (
-                  <span
-                    key={branch}
-                    className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]"
-                  >
-                    {branch}
-                    <button
-                      type="button"
-                      aria-label={`Forget ${branch}`}
-                      onClick={() =>
-                        onChange({
-                          recentBranchNames: settings.recentBranchNames.filter((entry) => entry !== branch),
-                        })
-                      }
-                      className="text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                    >
-                      <X className="size-3" aria-hidden />
-                    </button>
-                  </span>
-                ))}
+
+            <div className="flex items-end gap-1.5">
+              <div className="flex-1">
+                <Label htmlFor="branch-add" className="text-xs text-muted-foreground">
+                  Add a branch
+                </Label>
+                <Input
+                  id="branch-add"
+                  value={newBranch}
+                  onChange={(event) => setNewBranch(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      addBranch()
+                    }
+                  }}
+                  placeholder="e.g. Patgram Sadar, Lalmonirhat"
+                  className="h-8"
+                />
               </div>
-            ) : null}
+              <Button size="sm" onClick={addBranch} disabled={newBranch.trim() === ''}>
+                <Plus />
+                Add
+              </Button>
+            </div>
+
+            <div className="flex max-h-48 flex-wrap gap-1.5 overflow-y-auto pt-1">
+              {settings.recentBranchNames.map((branch) => (
+                <span
+                  key={branch}
+                  className="inline-flex items-center gap-1.5 rounded-full border bg-muted/30 px-2.5 py-1 text-xs"
+                >
+                  <span>{branch}</span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${branch}`}
+                    onClick={() =>
+                      onChange({
+                        recentBranchNames: settings.recentBranchNames.filter((entry) => entry !== branch),
+                      })
+                    }
+                    className="rounded-full text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    <X className="size-3" aria-hidden />
+                  </button>
+                </span>
+              ))}
+              {settings.recentBranchNames.length === 0 && (
+                <p className="text-xs italic text-muted-foreground py-1">
+                  No branches configured. Click &ldquo;Reset to defaults&rdquo; or add branches above.
+                </p>
+              )}
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              {settings.recentBranchNames.length} branch
+              {settings.recentBranchNames.length === 1 ? '' : 'es'} configured.
+            </p>
           </section>
         </div>
 
@@ -233,31 +264,6 @@ function Field({
         {label}
       </Label>
       <Input id={id} value={value} onChange={(event) => onChange(event.target.value)} className="h-8" />
-    </div>
-  )
-}
-
-function ToggleRow({
-  label,
-  hint,
-  checked,
-  onChange,
-}: {
-  label: string
-  hint: string
-  checked: boolean
-  onChange: (checked: boolean) => void
-}) {
-  const id = `toggle-${label.toLowerCase().replace(/[^a-z]+/g, '-')}`
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="space-y-0.5">
-        <Label htmlFor={id} className="text-sm">
-          {label}
-        </Label>
-        <p className="text-xs text-muted-foreground">{hint}</p>
-      </div>
-      <Switch id={id} checked={checked} onCheckedChange={onChange} />
     </div>
   )
 }

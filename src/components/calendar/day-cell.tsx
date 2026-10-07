@@ -1,7 +1,8 @@
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight, User } from 'lucide-react'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { fromIso } from '@/lib/date'
+import { getOfficerColor } from '@/lib/officer-colors'
 import type { OfficerDayAssignment } from '@/lib/schedule-ops'
 import { cn } from '@/lib/utils'
 import type { DayStatus } from '@/lib/working-days'
@@ -68,29 +69,30 @@ export function DayCell({
         <div className="flex items-center gap-1.5 min-w-0">
           <span
             className={cn(
-              'text-xs font-semibold tabular-nums sm:text-sm',
-              isToday &&
-                'inline-flex size-5 items-center justify-center rounded-full bg-foreground text-background text-[11px] font-bold shadow-xs',
-              !inMonth && 'opacity-50',
+              'text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-100',
+              !inMonth && 'font-normal text-slate-400 dark:text-slate-500 opacity-60',
             )}
           >
             {date}
           </span>
           {isToday ? (
-            <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-foreground uppercase leading-none">
-              Today
-            </span>
+            <div className="inline-flex items-center gap-1">
+              <span className="size-2 rounded-full bg-blue-500 shrink-0" />
+              <span className="rounded-full bg-blue-500 px-2 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase leading-none shadow-2xs">
+                Today
+              </span>
+            </div>
           ) : null}
         </div>
 
         {isHoliday && holidayName ? (
-          <span className="line-clamp-1 max-w-[65%] rounded bg-holiday/15 px-1 py-0.5 text-[9px] sm:text-[10px] font-medium leading-none text-holiday">
+          <span className="line-clamp-1 max-w-[65%] rounded-md bg-holiday/15 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-medium leading-none text-holiday">
             {holidayName}
           </span>
         ) : null}
 
         {status.kind === 'override' ? (
-          <span className="text-[9px] font-semibold tracking-wider text-window-one uppercase">
+          <span className="text-[9px] font-semibold tracking-wider text-emerald-600 dark:text-emerald-400 uppercase">
             Override
           </span>
         ) : null}
@@ -103,77 +105,63 @@ export function DayCell({
       {/* Clean cell body with bottom indication */}
       {selectedOfficerId ? (
         // When a specific officer is selected in sidebar/filter
-        selectedAssignment ? (
-          <div className="mt-auto flex items-center justify-between gap-1 pt-1">
-            <span
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[10px] sm:text-[11px] font-medium leading-none truncate shadow-2xs',
-                selectedAssignment.windowKey === 'one'
-                  ? 'bg-window-one/15 text-window-one border border-window-one/30'
-                  : 'bg-window-two/15 text-window-two border border-window-two/30',
-              )}
-              title={`${selectedAssignment.officer.name}: ${selectedAssignment.branch || 'Scheduled'}`}
-            >
+        selectedAssignment ? (() => {
+          const oColor = getOfficerColor(selectedAssignment.officer.id)
+          return (
+            <div className="mt-auto flex items-center justify-between gap-1 pt-1">
               <span
                 className={cn(
-                  'size-1.5 rounded-full shrink-0',
-                  selectedAssignment.windowKey === 'one' ? 'bg-window-one' : 'bg-window-two',
+                  'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] sm:text-[11px] font-medium leading-none truncate shadow-2xs border',
+                  oColor.badgeBg,
+                  oColor.badgeText,
+                  oColor.badgeBorder,
                 )}
-              />
-              <span className="truncate">
-                {selectedAssignment.branch || selectedAssignment.officer.name}
+                title={`${selectedAssignment.officer.name}: ${selectedAssignment.branch || 'Scheduled'}`}
+              >
+                <User className="size-3 shrink-0" />
+                <span className="truncate">
+                  {selectedAssignment.branch || selectedAssignment.officer.name}
+                </span>
               </span>
-            </span>
-            <ArrowUpRight className="size-3 text-muted-foreground opacity-0 group-hover/cell:opacity-100 transition-opacity shrink-0" />
-          </div>
-        ) : null
+            </div>
+          )
+        })() : null
       ) : (
-        // Team view: Clean empty cell with elegant assignment badge at foot
+        // Team view: Clean cell with pill badge at foot
         isWorking && assignments.length > 0 ? (
           <div className="mt-auto flex items-center justify-between gap-1 pt-1">
             <span
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[10px] sm:text-[11px] font-medium leading-none transition-colors shadow-2xs',
+                'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] sm:text-[11px] font-medium leading-none transition-colors shadow-2xs',
                 inWindowOne
-                  ? 'bg-window-one/15 text-window-one border border-window-one/30'
+                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60'
                   : inWindowTwo
-                    ? 'bg-window-two/15 text-window-two border border-window-two/30'
-                    : 'bg-muted text-muted-foreground border',
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60'
+                    : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60',
               )}
             >
-              <span
-                className={cn(
-                  'size-1.5 rounded-full shrink-0',
-                  inWindowOne ? 'bg-window-one' : inWindowTwo ? 'bg-window-two' : 'bg-muted-foreground',
-                )}
-              />
+              <User className="size-3 shrink-0" />
               <span>{assignments.length} officers</span>
-            </span>
-
-            <span className="text-[10px] font-medium text-muted-foreground/0 group-hover/cell:text-muted-foreground transition-all flex items-center gap-0.5 shrink-0">
-              <span>Details</span>
-              <ArrowUpRight className="size-3" />
             </span>
           </div>
         ) : isHoliday && assignments.length > 0 ? (
           <div className="mt-auto flex items-center justify-between text-[10px] text-muted-foreground/70 font-medium">
             <span>{assignments.length} in window</span>
-            <ArrowUpRight className="size-3 opacity-0 group-hover/cell:opacity-100 transition-opacity" />
           </div>
         ) : isOff && assignments.some((a) => a.isCustomRange) ? (
-          <div className="mt-auto flex items-center justify-between text-[10px] text-muted-foreground/80 font-medium">
-            <span>Custom visit</span>
-            <ArrowUpRight className="size-3 opacity-0 group-hover/cell:opacity-100 transition-opacity" />
+          <div className="mt-auto flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 font-medium">
+            <span className="size-1.5 rounded-full bg-slate-400 shrink-0" />
+            <span>Customs visit</span>
           </div>
         ) : null
       )}
 
       {/* Small status dots */}
       {status.kind === 'holiday' && status.holiday.source === 'manual' ? (
-        <span className="absolute right-1 bottom-1 size-1.5 rounded-full bg-holiday ring-1 ring-background" />
+        <span className="absolute right-2 bottom-2 size-2 rounded-full bg-orange-500 ring-1 ring-background" />
       ) : null}
       {status.kind === 'override' ? (
-        <span className="absolute right-1 bottom-1 size-1.5 rounded-full bg-window-one ring-1 ring-background" />
+        <span className="absolute right-2 bottom-2 size-2 rounded-full bg-emerald-500 ring-1 ring-background" />
       ) : null}
     </div>
   )
@@ -244,29 +232,29 @@ function cellClasses(
   isToday: boolean,
 ): string {
   return cn(
-    'group/cell relative flex h-full min-h-18 sm:min-h-20 flex-col gap-0.5 overflow-hidden rounded-md border p-1 text-left transition-all cursor-pointer select-none',
-    'hover:border-primary/70 hover:bg-accent/20 hover:shadow-2xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-    isToday && 'ring-2 ring-inset ring-foreground/80 dark:ring-foreground',
+    'group/cell relative flex h-full min-h-20 sm:min-h-24 flex-col justify-between overflow-hidden rounded-xl border p-2 sm:p-2.5 text-left transition-all cursor-pointer select-none',
+    'hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-2xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
     status.kind === 'holiday'
-      ? 'border-holiday bg-holiday-soft'
+      ? 'border-holiday/40 bg-holiday-soft'
       : status.kind === 'override'
-        ? 'border-window-one/60 bg-window-one-soft'
+        ? 'border-emerald-300/60 bg-emerald-50/60 dark:bg-emerald-950/30'
         : status.kind === 'weekly-off'
           ? inWindowOne
-            ? 'bg-window-one-muted-off text-muted-foreground'
+            ? 'border-slate-200/80 dark:border-slate-800 bg-window-one-muted-off text-muted-foreground'
             : inWindowTwo
-              ? 'bg-window-two-muted-off text-muted-foreground'
-              : 'bg-weekend text-muted-foreground'
+              ? 'border-slate-200/80 dark:border-slate-800 bg-window-two-muted-off text-muted-foreground'
+              : 'border-slate-200/80 dark:border-slate-800 bg-weekend text-muted-foreground'
           : inWindowOne
-            ? 'bg-window-one-soft/50'
+            ? 'border-blue-100 bg-window-one-soft/50 dark:border-blue-900/40'
             : inWindowTwo
-              ? 'bg-window-two-soft/50'
+              ? 'border-emerald-100 bg-window-two-soft/50 dark:border-emerald-900/40'
               : inMonth
-                ? 'bg-card'
-                : 'bg-muted/40',
+                ? 'border-slate-200/90 bg-card dark:border-slate-800'
+                : 'border-slate-200/60 bg-card/60 dark:border-slate-800/60 dark:bg-card/40',
     status.kind === 'weekly-off' && 'offday-hatch',
     !inMonth && 'opacity-60',
     isOfficerRange && 'outline-primary/40 outline-2 outline-offset-[-2px]',
+    isToday && 'border-2 border-blue-600 ring-2 ring-inset ring-blue-600/30 dark:border-blue-500 dark:ring-blue-500/30',
   )
 }
 

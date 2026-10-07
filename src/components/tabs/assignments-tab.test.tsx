@@ -217,4 +217,43 @@ describe('AssignmentsTab - Fixed width layout and input experience', () => {
     fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' })
     expect(blurSpy).toHaveBeenCalled()
   })
+
+  it('color-matches Window 1 (blue) and Window 2 (emerald) branch and date cells consistently', () => {
+    const { container } = render(
+      <TooltipProvider>
+        <AssignmentsTab
+          schedule={dummySchedule}
+          settings={dummySettings}
+          context={dummyContext}
+          warnings={[]}
+          selectedOfficerId={null}
+          onSelectOfficer={vi.fn()}
+          onSetBranch={vi.fn()}
+          onSetCustomRanges={vi.fn()}
+          onSwapBranches={vi.fn()}
+          onRememberBranch={vi.fn()}
+        />
+      </TooltipProvider>,
+    )
+
+    // Table headers have window indicators
+    expect(screen.getByText('Window 1 branch')).toBeInTheDocument()
+    expect(screen.getByText('Window 2 branch')).toBeInTheDocument()
+
+    // Window 1 branch card has blue accent
+    const w1BranchCard = container.querySelector('[aria-label="Branch for window 1"]')?.closest('div.rounded-xl')
+    expect(w1BranchCard).toHaveClass('border-l-blue-500')
+
+    // Window 2 branch card has emerald accent
+    const w2BranchCard = container.querySelector('[aria-label="Branch for window 2"]')?.closest('div.rounded-xl')
+    expect(w2BranchCard).toHaveClass('border-l-emerald-500')
+
+    // Window 1 dates card has blue background styling
+    const dateCards = container.querySelectorAll('td div.rounded-xl')
+    const w1DateCard = Array.from(dateCards).find((el) => el.className.includes('bg-[#f0f6ff]'))
+    const w2DateCard = Array.from(dateCards).find((el) => el.className.includes('bg-[#edf7f4]'))
+
+    expect(w1DateCard).toBeDefined()
+    expect(w2DateCard).toBeDefined()
+  })
 })

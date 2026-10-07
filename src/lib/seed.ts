@@ -1,8 +1,8 @@
 import {
   DEFAULT_ACTIVITIES,
+  DEFAULT_BRANCHES,
   DEFAULT_PERMANENT_ROSTER,
   emptyMonthSchedule,
-  rememberBranchName,
   rememberTemporaryName,
   slug,
   type AppSettings,
@@ -185,13 +185,8 @@ export function applyDefaultMonth(
   for (const name of SAMPLE_TEMPORARY_NAMES) {
     nextSettings = rememberTemporaryName(nextSettings, name)
   }
-  for (const row of SAMPLE_ROWS) {
-    if (row.branchOne) nextSettings = rememberBranchName(nextSettings, row.branchOne)
-    if (row.branchTwo) nextSettings = rememberBranchName(nextSettings, row.branchTwo)
-  }
-  for (const entry of SAMPLE_TEMPORARIES) {
-    if (entry.branchOne) nextSettings = rememberBranchName(nextSettings, entry.branchOne)
-    if (entry.branchTwo) nextSettings = rememberBranchName(nextSettings, entry.branchTwo)
+  if (!nextSettings.recentBranchNames || nextSettings.recentBranchNames.length === 0) {
+    nextSettings = { ...nextSettings, recentBranchNames: [...DEFAULT_BRANCHES] }
   }
   const schedule = createDefaultSchedule(year, month, customWindows, settings.defaultPermanentRoster)
   return { settings: nextSettings, schedule, monthKey: toMonthKey(year, month) }

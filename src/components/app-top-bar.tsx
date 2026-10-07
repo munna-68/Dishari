@@ -1,5 +1,7 @@
 import {
+  Calendar,
   CalendarCheck,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -13,6 +15,7 @@ import {
   Sparkles,
   Sun,
   Upload,
+  User,
 } from 'lucide-react'
 
 import {
@@ -94,13 +97,20 @@ export function TopBar({
   const years = buildYearRange(currentYear)
 
   return (
-    <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="flex flex-wrap items-center gap-2 px-4 py-2">
-        <h1 className="mr-1 hidden text-sm font-semibold lg:block">Monitoring Schedule Planner</h1>
+    <header className="border-b border-slate-200/80 bg-white/95 backdrop-blur dark:bg-card/80 dark:border-slate-800">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+        <div className="flex items-center gap-2.5 mr-1">
+          <div className="flex size-7.5 sm:size-8 items-center justify-center rounded-lg bg-blue-600 text-white shadow-xs shrink-0">
+            <Calendar className="size-4" />
+          </div>
+          <h1 className="text-sm font-bold text-foreground tracking-tight hidden md:block">
+            Monitoring Schedule Planner
+          </h1>
+        </div>
 
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" onClick={onPreviousMonth} aria-label="Previous month">
-            <ChevronLeft />
+          <Button variant="outline" size="icon" className="size-8 rounded-lg" onClick={onPreviousMonth} aria-label="Previous month">
+            <ChevronLeft className="size-4" />
           </Button>
           <MonthPicker
             month={currentMonth}
@@ -108,30 +118,30 @@ export function TopBar({
             years={years}
             onChange={(next) => onMonthChange(next)}
           />
-          <Button variant="outline" size="icon" onClick={onNextMonth} aria-label="Next month">
-            <ChevronRight />
+          <Button variant="outline" size="icon" className="size-8 rounded-lg" onClick={onNextMonth} aria-label="Next month">
+            <ChevronRight className="size-4" />
           </Button>
         </div>
 
         <SaveIndicator status={saveStatus} isSaved={isSaved} />
 
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="outline" size="sm" className="h-8 gap-2 rounded-lg text-xs font-medium border-slate-200" asChild>
             <a
               href="https://github.com/munna-68"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Mahmud Munna on GitHub"
             >
-              <GithubIcon />
+              <User className="size-3.5 text-muted-foreground" />
               <span>Mahmud Munna</span>
             </a>
           </Button>
 
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" disabled={isBusy}>
-                <FileDown />
+              <Button variant="outline" size="sm" disabled={isBusy} className="h-8 gap-1.5 rounded-lg text-xs font-medium border-slate-200">
+                <Download className="size-3.5" />
                 Export
               </Button>
             </DropdownMenuTrigger>
@@ -159,8 +169,8 @@ export function TopBar({
 
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" aria-label="Settings and backup">
-                <Settings />
+              <Button variant="outline" size="icon" className="size-8 rounded-lg border-slate-200" aria-label="Settings and backup">
+                <Settings className="size-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
@@ -240,7 +250,7 @@ function MonthPicker({
         Month
       </Label>
       <Select value={String(month)} onValueChange={(value) => onChange(`${year}-${value.padStart(2, '0')}`)}>
-        <SelectTrigger id="month-select" className="h-9 w-[9.5rem]">
+        <SelectTrigger id="month-select" className="h-8 w-[8.5rem] rounded-lg text-xs font-semibold border-slate-200 dark:border-slate-800">
           <SelectValue>{MONTH_NAMES[month - 1]}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -256,7 +266,7 @@ function MonthPicker({
         Year
       </Label>
       <Select value={String(year)} onValueChange={(value) => onChange(`${value}-${String(month).padStart(2, '0')}`)}>
-        <SelectTrigger id="year-select" className="h-9 w-24">
+        <SelectTrigger id="year-select" className="h-8 w-20 rounded-lg text-xs font-semibold border-slate-200 dark:border-slate-800">
           <SelectValue>{year}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -278,16 +288,16 @@ function SaveIndicator({ status, isSaved }: { status: TopBarProps['saveStatus'];
       role="status"
       aria-live="polite"
       className={cn(
-        'flex items-center gap-1.5 text-xs',
-        isSaved ? 'text-muted-foreground' : 'text-foreground',
+        'flex items-center gap-1.5 text-xs font-medium',
+        isSaved ? 'text-emerald-700 dark:text-emerald-400' : 'text-foreground',
       )}
     >
       {status === 'saving' || !isSaved ? (
-        <Loader2 className="size-3.5 animate-spin" aria-hidden />
+        <Loader2 className="size-3.5 animate-spin text-muted-foreground" aria-hidden />
       ) : (
-        <span aria-hidden className="size-1.5 rounded-full bg-emerald-500" />
+        <CheckCircle2 className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" aria-hidden />
       )}
-      {label}
+      <span className={cn(isSaved && 'text-muted-foreground')}>{label}</span>
     </span>
   )
 }
@@ -317,19 +327,4 @@ function buildYearRange(current: number): number[] {
   const years: number[] = []
   for (let offset = -3; offset <= 5; offset += 1) years.push(current + offset)
   return years
-}
-
-function GithubIcon({ className, ...props }: React.ComponentProps<'svg'>) {
-  return (
-    <svg
-      role="img"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-hidden="true"
-      className={cn('size-3.5', className)}
-      {...props}
-    >
-      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-    </svg>
-  )
 }
