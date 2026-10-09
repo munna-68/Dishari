@@ -367,30 +367,6 @@ export function ActivitiesTab({
           </DragOverlay>
         </DndContext>
 
-        {isDirty ? (
-          <div className="flex shrink-0 items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-950 dark:text-emerald-200">
-            <span>You have unconfirmed changes to activities.</span>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleDiscardAll}
-                className="h-7 px-2.5 text-xs"
-              >
-                Discard
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleConfirmAll}
-                className="h-7 px-2.5 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                <Check className="size-3" />
-                Confirm Changes
-              </Button>
-            </div>
-          </div>
-        ) : null}
-
         <div className="shrink-0 pt-1">
           <NewActivityInput onAdd={handleAddNew} />
         </div>

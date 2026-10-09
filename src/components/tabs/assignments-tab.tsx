@@ -18,21 +18,12 @@ import {
   GripVertical,
   Info,
   MapPin,
-  MoreVertical,
   RotateCcw,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
@@ -267,7 +258,6 @@ export function AssignmentsTab({
                           context={context}
                           rememberedBranches={settings.recentBranchNames}
                           activeDragId={activeCellId}
-                          onSelectOfficer={() => onSelectOfficer(officer.id)}
                           onSetBranch={onSetBranch}
                           onSetCustomRanges={onSetCustomRanges}
                           onRememberBranch={onRememberBranch}
@@ -318,7 +308,6 @@ function AssignmentCells({
   context,
   rememberedBranches,
   activeDragId,
-  onSelectOfficer,
   onSetBranch,
   onSetCustomRanges,
   onRememberBranch,
@@ -333,7 +322,6 @@ function AssignmentCells({
   context: HolidayContext
   rememberedBranches: string[]
   activeDragId: string | null
-  onSelectOfficer: () => void
   onSetBranch: (officerId: string, windowKey: WindowKey, branch: string) => void
   onSetCustomRanges: (officerId: string, windowKey: WindowKey, ranges: DateRange[]) => void
   onRememberBranch: (branch: string) => void
@@ -384,9 +372,6 @@ function AssignmentCells({
           customRanges={customRanges}
           context={context}
           active={false}
-          showMoreMenu={windowKey === 'two'}
-          officerName={officerName}
-          onSelectOfficer={onSelectOfficer}
           onChange={(ranges) => onSetCustomRanges(officerId, windowKey, ranges)}
         />
       </td>
@@ -657,9 +642,6 @@ function DatesCell({
   customRanges,
   context,
   active,
-  showMoreMenu,
-  officerName,
-  onSelectOfficer,
   onChange,
 }: {
   windowKey: WindowKey
@@ -670,9 +652,6 @@ function DatesCell({
   customRanges: DateRange[]
   context: HolidayContext
   active: boolean
-  showMoreMenu?: boolean
-  officerName: string
-  onSelectOfficer: () => void
   onChange: (ranges: DateRange[]) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -687,127 +666,99 @@ function DatesCell({
   }
 
   return (
-    <div className="flex items-center gap-2 w-full h-full">
-      <div
-        className={cn(
-          'flex flex-col justify-between rounded-xl border p-3 transition-all w-full min-w-0 min-h-[102px]',
-          theme.bg,
-          theme.hoverBorder,
-          theme.shadow,
-          active && 'ring-2 ring-primary',
-        )}
-        onDoubleClick={() => setOpen(true)}
-      >
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-1.5">
-            <Calendar className={cn('size-4 shrink-0', theme.icon)} aria-hidden />
-            <p className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{displayText || '—'}</p>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 pl-5.5">
-            ({workingDaysCount} working {workingDaysCount === 1 ? 'day' : 'days'})
-          </p>
+    <div
+      className={cn(
+        'flex flex-col justify-between rounded-xl border p-3 transition-all w-full min-w-0 min-h-[102px]',
+        theme.bg,
+        theme.hoverBorder,
+        theme.shadow,
+        active && 'ring-2 ring-primary',
+      )}
+      onDoubleClick={() => setOpen(true)}
+    >
+      <div className="space-y-0.5">
+        <div className="flex items-center gap-1.5">
+          <Calendar className={cn('size-4 shrink-0', theme.icon)} aria-hidden />
+          <p className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{displayText || '—'}</p>
         </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400 pl-5.5">
+          ({workingDaysCount} working {workingDaysCount === 1 ? 'day' : 'days'})
+        </p>
+      </div>
 
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn(
+              'mt-2 h-7 -ml-1 px-1.5 text-xs justify-start gap-1.5 font-medium transition-colors',
+              theme.buttonHover,
+            )}
+          >
+            <Edit3 className="size-3.5" />
+            {followsWindow ? 'Set custom dates' : 'Edit custom dates'}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 space-y-3" align="start">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold">Custom visit dates</p>
+            <p className="text-xs text-muted-foreground">
+              Window dates are {longDateLabel(windowRange.start)} to {longDateLabel(windowRange.end)}.
+            </p>
+          </div>
+
+          {draft.map((range, index) => (
+            <RangeRow
+              key={index}
+              index={index}
+              range={range}
+              context={context}
+              onChange={(next) =>
+                setDraft((current) => current.map((entry, i) => (i === index ? next : entry)))
+              }
+              onRemove={() => setDraft((current) => current.filter((_, i) => i !== index))}
+            />
+          ))}
+
+          <div className="flex flex-wrap items-center gap-2">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className={cn(
-                'mt-2 h-7 -ml-1 px-1.5 text-xs justify-start gap-1.5 font-medium transition-colors',
-                theme.buttonHover,
-              )}
+              onClick={() => setDraft((current) => [...current, { ...windowRange }])}
             >
-              <Edit3 className="size-3.5" />
-              {followsWindow ? 'Set custom dates' : 'Edit custom dates'}
+              Add another range
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80 space-y-3" align="start">
-            <div className="space-y-1">
-              <p className="text-sm font-semibold">Custom visit dates</p>
-              <p className="text-xs text-muted-foreground">
-                Window dates are {longDateLabel(windowRange.start)} to {longDateLabel(windowRange.end)}.
-              </p>
-            </div>
+            <Button
+              size="sm"
+              onClick={() => {
+                onChange(draft)
+                setOpen(false)
+              }}
+            >
+              Apply
+            </Button>
+          </div>
 
-            {draft.map((range, index) => (
-              <RangeRow
-                key={index}
-                index={index}
-                range={range}
-                context={context}
-                onChange={(next) =>
-                  setDraft((current) => current.map((entry, i) => (i === index ? next : entry)))
-                }
-                onRemove={() => setDraft((current) => current.filter((_, i) => i !== index))}
-              />
-            ))}
-
-            <div className="flex flex-wrap items-center gap-2">
+          {!followsWindow ? (
+            <>
+              <Separator />
               <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDraft((current) => [...current, { ...windowRange }])}
-              >
-                Add another range
-              </Button>
-              <Button
+                variant="ghost"
                 size="sm"
                 onClick={() => {
-                  onChange(draft)
+                  onChange([])
+                  setDraft([])
                   setOpen(false)
                 }}
               >
-                Apply
+                <RotateCcw className="size-3.5" />
+                Follow window again
               </Button>
-            </div>
-
-            {!followsWindow ? (
-              <>
-                <Separator />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    onChange([])
-                    setDraft([])
-                    setOpen(false)
-                  }}
-                >
-                  <RotateCcw className="size-3.5" />
-                  Follow window again
-                </Button>
-              </>
-            ) : null}
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      {/* Row action button ⋮ matching mockup */}
-      {showMoreMenu ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon-xs"
-              className="size-8 rounded-lg border-border/70 bg-card text-muted-foreground/80 hover:text-foreground shrink-0 shadow-2xs self-center transition-colors"
-              aria-label={`Actions for ${officerName}`}
-            >
-              <MoreVertical className="size-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 text-xs">
-            <DropdownMenuLabel className="text-xs font-semibold">{officerName}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onSelectOfficer} className="text-xs cursor-pointer">
-              Highlight on calendar
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setOpen(true)} className="text-xs cursor-pointer">
-              Set custom dates
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ) : null}
+            </>
+          ) : null}
+        </PopoverContent>
+      </Popover>
     </div>
   )
 }

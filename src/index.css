@@ -242,3 +242,17 @@
     width: var(--officers-width, 19rem);
   }
 }
+
+/* Keep vertical scrollbar gutter stable so the page never jumps or resizes when dropdowns/modals open */
+html {
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+}
+
+/* Prevent Radix RemoveScroll from hiding the window scrollbar and shifting horizontal layout */
+body[data-scroll-locked] {
+  overflow: visible !important;
+  margin-right: 0px !important;
+  padding-right: 0px !important;
+}
+
