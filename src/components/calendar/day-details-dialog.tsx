@@ -555,7 +555,10 @@ function BranchCombobox({
             </div>
           ) : null}
 
-          <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1">
+          <div
+            className="max-h-48 overflow-y-auto space-y-0.5 pr-1 overscroll-contain"
+            onWheel={(e) => e.stopPropagation()}
+          >
             <div className="px-1.5 py-0.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
               {allBranches.length > 0 ? 'Available Branches' : 'No saved branches'}
             </div>
@@ -720,7 +723,10 @@ function OfficerAssignmentRow({
                 </PopoverTrigger>
                 <PopoverContent className="w-56 p-2 text-xs" align="end">
                   <p className="font-semibold text-xs mb-1.5 text-foreground">Swap branch with:</p>
-                  <div className="max-h-48 overflow-y-auto space-y-1">
+                  <div
+                    className="max-h-48 overflow-y-auto space-y-1 overscroll-contain"
+                    onWheel={(e) => e.stopPropagation()}
+                  >
                     {otherOfficers.map((other) => (
                       <button
                         key={other.id}

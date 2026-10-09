@@ -82,6 +82,14 @@ function SelectContent({
           maxHeight: "min(26rem, var(--radix-select-content-available-height, 26rem))",
           ...props.style,
         }}
+        onWheel={(e) => {
+          e.stopPropagation()
+          props.onWheel?.(e)
+        }}
+        onTouchMove={(e) => {
+          e.stopPropagation()
+          props.onTouchMove?.(e)
+        }}
         {...props}
       >
         <SelectScrollUpButton />

@@ -19,6 +19,7 @@ import {
   Info,
   MapPin,
   RotateCcw,
+  X,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -700,7 +701,7 @@ function DatesCell({
             {followsWindow ? 'Set custom dates' : 'Edit custom dates'}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-80 space-y-3" align="start">
+        <PopoverContent className="w-[400px] max-w-[calc(100vw-2rem)] space-y-3" align="start">
           <div className="space-y-1">
             <p className="text-sm font-semibold">Custom visit dates</p>
             <p className="text-xs text-muted-foreground">
@@ -781,34 +782,41 @@ function RangeRow({
   const endOff = !isValidIso(range.end) || !isWorkingDay(range.end, context)
 
   return (
-    <div className="space-y-1.5 rounded-md border p-2">
-      <div className="flex items-end gap-1.5">
-        <div className="flex-1">
-          <label className="text-[11px] text-muted-foreground" htmlFor={`range-start-${index}`}>
+    <div className="space-y-1.5 rounded-md border p-2.5 bg-card">
+      <div className="flex items-end gap-2">
+        <div className="flex-1 min-w-0">
+          <label className="text-[11px] font-medium text-muted-foreground" htmlFor={`range-start-${index}`}>
             From
           </label>
           <Input
             id={`range-start-${index}`}
             type="date"
             value={range.start}
-            className="h-8 text-xs"
+            className="h-8 text-xs bg-background"
             onChange={(event) => onChange({ ...range, start: event.target.value })}
           />
         </div>
-        <div className="flex-1">
-          <label className="text-[11px] text-muted-foreground" htmlFor={`range-end-${index}`}>
+        <div className="flex-1 min-w-0">
+          <label className="text-[11px] font-medium text-muted-foreground" htmlFor={`range-end-${index}`}>
             To
           </label>
           <Input
             id={`range-end-${index}`}
             type="date"
             value={range.end}
-            className="h-8 text-xs"
+            className="h-8 text-xs bg-background"
             onChange={(event) => onChange({ ...range, end: event.target.value })}
           />
         </div>
-        <Button variant="ghost" size="sm" onClick={onRemove} aria-label="Remove this range">
-          ✕
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onRemove}
+          aria-label="Remove this range"
+          className="size-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          title="Remove this range"
+        >
+          <X className="size-3.5" />
         </Button>
       </div>
 

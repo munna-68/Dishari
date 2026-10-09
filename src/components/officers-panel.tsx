@@ -23,8 +23,8 @@ import {
   ChevronDown,
   ChevronUp,
   GripVertical,
+  PanelLeftClose,
   RotateCcw,
-  SlidersHorizontal,
   Trash2,
   Undo2,
   UserRoundPlus,
@@ -155,7 +155,7 @@ export function OfficersPanel({
                 aria-label="Collapse officers panel"
                 className="size-8 rounded-lg border-slate-200 text-muted-foreground hover:text-foreground shrink-0 dark:border-slate-800"
               >
-                <SlidersHorizontal className="size-4" />
+                <PanelLeftClose className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Collapse panel (Ctrl+[ or Alt+O)</TooltipContent>
