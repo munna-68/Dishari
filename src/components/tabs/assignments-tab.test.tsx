@@ -119,7 +119,7 @@ describe('AssignmentsTab - Fixed width layout and input experience', () => {
     expect(onSetBranch).toHaveBeenCalledWith(
       'off-1',
       'one',
-      'Mangalpur, Dinajpur Issue-Based Monitoring',
+      'Issue-Based Monitoring at Mangalpur, Dinajpur',
     )
   })
 
@@ -130,7 +130,7 @@ describe('AssignmentsTab - Fixed width layout and input experience', () => {
       assignments: {
         ...dummySchedule.assignments,
         'off-1': {
-          one: { branch: 'Mangalpur, Dinajpur Issue-Based Monitoring', customRanges: [] },
+          one: { branch: 'Issue-Based Monitoring at Mangalpur, Dinajpur', customRanges: [] },
           two: { branch: 'Hatrampur, Dinajpur', customRanges: [] },
         },
       },
@@ -155,6 +155,118 @@ describe('AssignmentsTab - Fixed width layout and input experience', () => {
 
     // Button should display "- Issue-Based Monitoring"
     const removeButton = screen.getByRole('button', { name: /- Issue-Based Monitoring/i })
+    expect(removeButton).toBeInTheDocument()
+
+    fireEvent.click(removeButton)
+    expect(onSetBranch).toHaveBeenCalledWith(
+      'off-1',
+      'one',
+      'Mangalpur, Dinajpur',
+    )
+  })
+
+  it('toggles Special Visit at as a prefix before branch name', () => {
+    const onSetBranch = vi.fn()
+    render(
+      <TooltipProvider>
+        <AssignmentsTab
+          schedule={dummySchedule}
+          settings={dummySettings}
+          context={dummyContext}
+          warnings={[]}
+          selectedOfficerId={null}
+          onSelectOfficer={vi.fn()}
+          onSetBranch={onSetBranch}
+          onSetCustomRanges={vi.fn()}
+          onSwapBranches={vi.fn()}
+          onRememberBranch={vi.fn()}
+        />
+      </TooltipProvider>,
+    )
+
+    const addSpecialButtons = screen.getAllByRole('button', { name: /\+ Special Visit at/i })
+    expect(addSpecialButtons.length).toBeGreaterThan(0)
+
+    fireEvent.click(addSpecialButtons[0]!)
+    expect(onSetBranch).toHaveBeenCalledWith(
+      'off-1',
+      'one',
+      'Special Visit at Mangalpur, Dinajpur',
+    )
+  })
+
+  it('toggles off Special Visit at when already present', () => {
+    const onSetBranch = vi.fn()
+    const scheduleWithSpecial: MonthSchedule = {
+      ...dummySchedule,
+      assignments: {
+        ...dummySchedule.assignments,
+        'off-1': {
+          one: { branch: 'Special Visit at Mangalpur, Dinajpur', customRanges: [] },
+          two: { branch: 'Hatrampur, Dinajpur', customRanges: [] },
+        },
+      },
+    }
+
+    render(
+      <TooltipProvider>
+        <AssignmentsTab
+          schedule={scheduleWithSpecial}
+          settings={dummySettings}
+          context={dummyContext}
+          warnings={[]}
+          selectedOfficerId={null}
+          onSelectOfficer={vi.fn()}
+          onSetBranch={onSetBranch}
+          onSetCustomRanges={vi.fn()}
+          onSwapBranches={vi.fn()}
+          onRememberBranch={vi.fn()}
+        />
+      </TooltipProvider>,
+    )
+
+    const removeButton = screen.getByRole('button', { name: /- Special Visit at/i })
+    expect(removeButton).toBeInTheDocument()
+
+    fireEvent.click(removeButton)
+    expect(onSetBranch).toHaveBeenCalledWith(
+      'off-1',
+      'one',
+      'Mangalpur, Dinajpur',
+    )
+  })
+
+  it('cleans up legacy suffix format when toggled off', () => {
+    const onSetBranch = vi.fn()
+    const scheduleWithLegacy: MonthSchedule = {
+      ...dummySchedule,
+      assignments: {
+        ...dummySchedule.assignments,
+        'off-1': {
+          one: { branch: 'Mangalpur, Dinajpur Special Visit at', customRanges: [] },
+          two: { branch: 'Hatrampur, Dinajpur', customRanges: [] },
+        },
+      },
+    }
+
+    render(
+      <TooltipProvider>
+        <AssignmentsTab
+          schedule={scheduleWithLegacy}
+          settings={dummySettings}
+          context={dummyContext}
+          warnings={[]}
+          selectedOfficerId={null}
+          onSelectOfficer={vi.fn()}
+          onSetBranch={onSetBranch}
+          onSetCustomRanges={vi.fn()}
+          onSwapBranches={vi.fn()}
+          onRememberBranch={vi.fn()}
+        />
+      </TooltipProvider>,
+    )
+
+    const removeButton = screen.getByRole('button', { name: /- Special Visit at/i })
     expect(removeButton).toBeInTheDocument()
 
     fireEvent.click(removeButton)

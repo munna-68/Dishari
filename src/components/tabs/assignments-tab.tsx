@@ -529,12 +529,29 @@ function BranchCell({
                 onClick={() => {
                   let next: string
                   if (isSelected) {
+                    const removePattern = entry.endsWith('at')
+                      ? new RegExp(escapeRegExp(entry), 'gi')
+                      : new RegExp(`${escapeRegExp(entry)}(\\s+at)?`, 'gi')
                     next = draft
-                      .replace(new RegExp(escapeRegExp(entry), 'gi'), '')
+                      .replace(removePattern, '')
                       .replace(/\s+/g, ' ')
                       .trim()
                   } else {
-                    next = draft.trim() === '' ? entry : `${draft.trim()} ${entry}`
+                    let cleanDraft = draft.trim()
+                    for (const other of QUICK_BRANCHES) {
+                      if (other !== entry) {
+                        const otherPattern = other.endsWith('at')
+                          ? new RegExp(escapeRegExp(other), 'gi')
+                          : new RegExp(`${escapeRegExp(other)}(\\s+at)?`, 'gi')
+                        cleanDraft = cleanDraft.replace(otherPattern, '').replace(/\s+/g, ' ').trim()
+                      }
+                    }
+                    if (cleanDraft === '') {
+                      next = entry
+                    } else {
+                      const prefix = entry.endsWith('at') ? entry : `${entry} at`
+                      next = `${prefix} ${cleanDraft.replace(/^at\s+/i, '')}`
+                    }
                   }
                   setDraft(next)
                   onChange(next)
