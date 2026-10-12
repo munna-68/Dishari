@@ -204,7 +204,7 @@ export function PlannerWorkspace() {
               {/* Officers Panel Column */}
               <div
                 className={cn(
-                  'shrink-0 lg:h-[calc(100dvh-8.5rem)] lg:min-h-[32rem]',
+                  'shrink-0 lg:min-h-[32rem]',
                   isLeftPanelCollapsed ? 'hidden' : 'w-full officers-panel-col',
                   isLeftPanelDragging ? 'select-none transition-none' : 'transition-[width] duration-150 ease-out',
                 )}

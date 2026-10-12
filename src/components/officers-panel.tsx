@@ -224,7 +224,7 @@ export function OfficersPanel({
           onDragCancel={handleDragCancel}
           onDragEnd={handleDragEnd}
         >
-          <ScrollArea className="-mx-1 max-h-[26rem] min-h-0 flex-1 px-1 xl:max-h-full">
+          <ScrollArea className="-mx-1 min-h-0 flex-1 px-1">
             <div className="space-y-3 pr-1">
               <OfficerGroup
                 title="Temporary"
